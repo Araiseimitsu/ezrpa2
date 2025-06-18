@@ -5,23 +5,33 @@ PySide6>=6.5.0
 
 # Database
 SQLAlchemy>=2.0.0
-alembic>=1.11.0
+aiosqlite>=0.19.0
 
-# 暗号化
+# 暗号化・セキュリティ
 cryptography>=41.0.0
 
 # Windows API
 pywin32>=306; sys_platform == "win32"
+pywin32-ctypes>=0.2.0; sys_platform == "win32"
+
+# 自動化・入力制御
+pyautogui>=0.9.54
+pynput>=1.7.6
+
+# 画像処理
+pillow>=10.0.0
+
+# システム情報
+psutil>=5.9.0
+
+# CLI
+click>=8.0.0
+
+# データ検証
+pydantic>=2.0.0
 
 # 非同期処理
-asyncio-mqtt>=0.13.0
-aiofiles>=23.0.0
+aiofiles>=23.1.0
 
-# ログ
-loguru>=0.7.0
-
-# 設定管理
-PyYAML>=6.0
-
-# 型ヒント
+# 型ヒント（Python 3.9対応）
 typing-extensions>=4.7.0

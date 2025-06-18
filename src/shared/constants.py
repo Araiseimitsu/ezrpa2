@@ -258,6 +258,19 @@ class ValidationConstants:
     MAX_RECORDINGS_PER_USER = 1000
 
 
+# メインアプリケーション用定数
+APP_NAME = ApplicationConstants.APPLICATION_NAME
+APP_VERSION = ApplicationConstants.VERSION
+
+# ディレクトリパス定数（main.pyで使用）
+CONFIG_DIR = str(WindowsPaths.get_app_data_dir())
+DATA_DIR = str(WindowsPaths.get_recordings_dir())
+LOG_DIR = str(WindowsPaths.get_logs_dir())
+
+# ファイル名定数
+DEFAULT_CONFIG_FILE = f"config{ApplicationConstants.SETTINGS_FILE_EXTENSION}"
+DEFAULT_LOG_FILE = f"ezrpa{ApplicationConstants.LOG_FILE_EXTENSION}"
+
 # グローバル設定
 DEBUG_MODE = os.environ.get('EZRPA_DEBUG', '').lower() in ('1', 'true', 'yes')
 LOG_LEVEL = os.environ.get('EZRPA_LOG_LEVEL', 'INFO').upper()

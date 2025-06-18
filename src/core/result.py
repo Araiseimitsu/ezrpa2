@@ -123,6 +123,11 @@ class Failure(Generic[E]):
 # Result型の定義
 Result = Union[Success[T], Failure[E]]
 
+# 便利な型エイリアス（Python 3.13対応）
+def result_type(success_type: Type[T], error_type: Type[E] = str) -> type:
+    """Result型を作成するヘルパー関数"""
+    return Union[Success[success_type], Failure[error_type]]
+
 
 class WindowsErrorCode:
     """Windows固有のエラーコード"""
@@ -340,8 +345,13 @@ def Err(error: E, error_type: Optional[str] = None) -> Failure[E]:
     return ResultBuilder.failure(error, error_type)
 
 
-# 型エイリアス
-StrResult = Result[str, str]
-IntResult = Result[int, str]
-BoolResult = Result[bool, str]
-ErrorResult = Result[Any, ErrorInfo]
+# 型エイリアス（Python 3.13対応）
+StrResult = Union[Success[str], Failure[str]]
+IntResult = Union[Success[int], Failure[str]]
+BoolResult = Union[Success[bool], Failure[str]]
+ErrorResult = Union[Success[Any], Failure[ErrorInfo]]
+
+# より具体的な型エイリアス
+def ResultOf(success_type, error_type=str):
+    """具体的なResult型を作成"""
+    return Union[Success[success_type], Failure[error_type]]
