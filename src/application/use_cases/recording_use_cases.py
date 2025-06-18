@@ -49,7 +49,9 @@ class StartRecordingUseCase(UseCase):
                 ))
             
             # 新しい記録を作成
-            recording = Recording(name=name, description=description)
+            recording = Recording(name=name)
+            if description:
+                recording.metadata.description = description
             
             # 設定から自動保存オプションを取得
             auto_save_result = await self._settings_repository.get("recording.auto_save", True)

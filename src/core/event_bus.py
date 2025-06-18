@@ -73,6 +73,26 @@ class Event(ABC):
             "process_id": os.getpid(),
             "thread_id": threading.get_ident()
         })
+    
+    def __lt__(self, other):
+        """比較演算子（優先度キューでの並び順用）"""
+        if not isinstance(other, Event):
+            return NotImplemented
+        # 優先度が高い方が先に処理される（数値が大きい方）
+        if self.priority.value != other.priority.value:
+            return self.priority.value > other.priority.value
+        # 同じ優先度の場合はタイムスタンプで比較（古い方が先）
+        return self.timestamp < other.timestamp
+    
+    def __eq__(self, other):
+        """等価比較"""
+        if not isinstance(other, Event):
+            return NotImplemented
+        return self.event_id == other.event_id
+    
+    def __hash__(self):
+        """ハッシュ値"""
+        return hash(self.event_id)
 
 
 # RPA関連のイベント定義
@@ -340,9 +360,8 @@ class EventBus(IEventBus):
         try:
             self._stats["events_published"] += 1
             
-            # 優先度付きキューに追加
-            priority_value = -event.priority.value  # 高優先度を先に処理
-            self._event_queue.put((priority_value, time.time(), event))
+            # 優先度付きキューに追加（Eventに比較メソッドがあるので直接追加）
+            self._event_queue.put(event)
             
             return ResultBuilder.success(True)
             
@@ -382,7 +401,7 @@ class EventBus(IEventBus):
         while not self._stop_event.is_set():
             try:
                 # タイムアウト付きでイベントを取得
-                priority, timestamp, event = self._event_queue.get(timeout=1.0)
+                event = self._event_queue.get(timeout=1.0)
                 
                 if event is None:  # 終了シグナル
                     break
@@ -490,7 +509,7 @@ class EventBus(IEventBus):
         self._stop_event.set()
         
         # 終了シグナルをキューに送信
-        self._event_queue.put((-999, time.time(), None))
+        self._event_queue.put(None)
         
         # 処理スレッドの終了を待機
         if self._processing_thread:

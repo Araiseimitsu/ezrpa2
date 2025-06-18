@@ -14,8 +14,8 @@ from .use_cases.recording_use_cases import (
     GetRecordingUseCase,
     GetAllRecordingsUseCase,
     DeleteRecordingUseCase,
-    UpdateRecordingUseCase,
-    SearchRecordingsUseCase
+    SearchRecordingsUseCase,
+    GetRecordingsByStatusUseCase
 )
 
 from .use_cases.playback_use_cases import (
@@ -36,8 +36,7 @@ from .use_cases.schedule_use_cases import (
     ActivateScheduleUseCase,
     DeactivateScheduleUseCase,
     GetScheduleExecutionHistoryUseCase,
-    GetNextExecutionTimeUseCase,
-    BulkScheduleOperationUseCase
+    GetNextExecutionTimeUseCase
 )
 
 # DTO
@@ -48,7 +47,6 @@ from .dto.recording_dto import (
     RecordingListDTO,
     RecordingSearchDTO,
     RecordingStatsDTO,
-    RecordingValidationDTO,
     RecordingExportDTO
 )
 
@@ -58,8 +56,7 @@ from .dto.playback_dto import (
     PlaybackResultDTO,
     PlaybackHistoryDTO,
     PlaybackValidationDTO,
-    PlaybackQueueDTO,
-    PlaybackMetricsDTO
+    PlaybackQueueDTO
 )
 
 from .dto.schedule_dto import (
@@ -72,8 +69,7 @@ from .dto.schedule_dto import (
     ScheduleStatsDTO,
     ExecutionResultDTO,
     ScheduleExecutionHistoryDTO,
-    ScheduleValidationDTO,
-    BulkScheduleOperationDTO
+    ScheduleValidationDTO
 )
 
 # アプリケーションサービス
@@ -94,8 +90,8 @@ __all__ = [
     "GetRecordingUseCase",
     "GetAllRecordingsUseCase",
     "DeleteRecordingUseCase",
-    "UpdateRecordingUseCase",
     "SearchRecordingsUseCase",
+    "GetRecordingsByStatusUseCase",
     "PlayRecordingUseCase",
     "PausePlaybackUseCase",
     "ResumePlaybackUseCase", 
@@ -111,7 +107,6 @@ __all__ = [
     "DeactivateScheduleUseCase",
     "GetScheduleExecutionHistoryUseCase",
     "GetNextExecutionTimeUseCase",
-    "BulkScheduleOperationUseCase",
     
     # DTO
     "RecordingDTO",
@@ -120,7 +115,6 @@ __all__ = [
     "RecordingListDTO", 
     "RecordingSearchDTO",
     "RecordingStatsDTO",
-    "RecordingValidationDTO",
     "RecordingExportDTO",
     "PlaybackConfigDTO",
     "PlaybackStatusDTO",
@@ -128,7 +122,6 @@ __all__ = [
     "PlaybackHistoryDTO",
     "PlaybackValidationDTO",
     "PlaybackQueueDTO",
-    "PlaybackMetricsDTO",
     "ScheduleDTO",
     "CreateScheduleDTO",
     "UpdateScheduleDTO",
@@ -139,7 +132,6 @@ __all__ = [
     "ExecutionResultDTO",
     "ScheduleExecutionHistoryDTO",
     "ScheduleValidationDTO",
-    "BulkScheduleOperationDTO",
     
     # アプリケーションサービス
     "RecordingApplicationService",

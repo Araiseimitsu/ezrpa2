@@ -13,8 +13,12 @@ from .recording_dto import (
     RecordingListDTO,
     RecordingSearchDTO,
     RecordingStatsDTO,
-    RecordingValidationDTO,
-    RecordingExportDTO
+    RecordingExportDTO,
+    RecordingImportDTO,
+    RecordingSummaryDTO,
+    ActionDTO,
+    RecordingMetadataDTO,
+    PlaybackSettingsDTO
 )
 
 from .playback_dto import (
@@ -24,7 +28,10 @@ from .playback_dto import (
     PlaybackHistoryDTO,
     PlaybackValidationDTO,
     PlaybackQueueDTO,
-    PlaybackMetricsDTO
+    PlaybackActionResultDTO,
+    PlaybackDTO,
+    PlaybackQueueItemDTO,
+    PlaybackScheduleDTO
 )
 
 from .schedule_dto import (
@@ -38,28 +45,36 @@ from .schedule_dto import (
     ExecutionResultDTO,
     ScheduleExecutionHistoryDTO,
     ScheduleValidationDTO,
-    BulkScheduleOperationDTO
+    BulkScheduleOperationDTO,
+    ScheduleImportExportDTO
 )
 
 __all__ = [
     # Recording DTOs
     "RecordingDTO",
-    "CreateRecordingDTO",
+    "CreateRecordingDTO", 
     "UpdateRecordingDTO",
     "RecordingListDTO",
     "RecordingSearchDTO",
     "RecordingStatsDTO",
-    "RecordingValidationDTO",
     "RecordingExportDTO",
+    "RecordingImportDTO",
+    "RecordingSummaryDTO",
+    "ActionDTO",
+    "RecordingMetadataDTO",
+    "PlaybackSettingsDTO",
     
     # Playback DTOs
     "PlaybackConfigDTO",
     "PlaybackStatusDTO",
-    "PlaybackResultDTO",
+    "PlaybackResultDTO", 
     "PlaybackHistoryDTO",
     "PlaybackValidationDTO",
     "PlaybackQueueDTO",
-    "PlaybackMetricsDTO",
+    "PlaybackActionResultDTO",
+    "PlaybackDTO",
+    "PlaybackQueueItemDTO",
+    "PlaybackScheduleDTO",
     
     # Schedule DTOs
     "ScheduleDTO",
@@ -72,5 +87,6 @@ __all__ = [
     "ExecutionResultDTO",
     "ScheduleExecutionHistoryDTO",
     "ScheduleValidationDTO",
-    "BulkScheduleOperationDTO"
+    "BulkScheduleOperationDTO",
+    "ScheduleImportExportDTO"
 ]

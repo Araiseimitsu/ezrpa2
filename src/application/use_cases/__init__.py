@@ -13,8 +13,8 @@ from .recording_use_cases import (
     GetRecordingUseCase,
     GetAllRecordingsUseCase,
     DeleteRecordingUseCase,
-    UpdateRecordingUseCase,
-    SearchRecordingsUseCase
+    SearchRecordingsUseCase,
+    GetRecordingsByStatusUseCase
 )
 
 from .playback_use_cases import (
@@ -35,8 +35,7 @@ from .schedule_use_cases import (
     ActivateScheduleUseCase,
     DeactivateScheduleUseCase,
     GetScheduleExecutionHistoryUseCase,
-    GetNextExecutionTimeUseCase,
-    BulkScheduleOperationUseCase
+    GetNextExecutionTimeUseCase
 )
 
 __all__ = [
@@ -47,8 +46,8 @@ __all__ = [
     "GetRecordingUseCase",
     "GetAllRecordingsUseCase",
     "DeleteRecordingUseCase",
-    "UpdateRecordingUseCase",
     "SearchRecordingsUseCase",
+    "GetRecordingsByStatusUseCase",
     
     # Playback Use Cases
     "PlayRecordingUseCase",
@@ -67,6 +66,5 @@ __all__ = [
     "ActivateScheduleUseCase",
     "DeactivateScheduleUseCase",
     "GetScheduleExecutionHistoryUseCase",
-    "GetNextExecutionTimeUseCase",
-    "BulkScheduleOperationUseCase"
+    "GetNextExecutionTimeUseCase"
 ]

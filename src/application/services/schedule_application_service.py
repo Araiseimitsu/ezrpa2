@@ -36,8 +36,7 @@ from ..dto.schedule_dto import (
     ScheduleStatsDTO,
     ExecutionResultDTO,
     ScheduleExecutionHistoryDTO,
-    ScheduleValidationDTO,
-    BulkScheduleOperationDTO
+    ScheduleValidationDTO
 )
 
 from .playback_application_service import PlaybackApplicationService

@@ -14,6 +14,9 @@ from pathlib import Path
 # プロジェクトルートをパスに追加
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# 必要なインポート
+from src.core.result import Result, Ok, Err, ErrorInfo
+
 
 async def demo_recording_application_service():
     """記録アプリケーションサービスのデモ"""
@@ -378,10 +381,55 @@ async def demo_schedule_application_service():
     from src.application.dto.schedule_dto import CreateScheduleDTO, TriggerConditionDTO, RepeatConditionDTO
     from src.application.handlers.schedule_event_handler import ScheduleEventHandler
     
-    # サービス初期化
-    schedule_repo = SqliteScheduleRepository()
-    recording_repo = SqliteRecordingRepository()
-    settings_repo = SqliteSettingsRepository()
+    # サービス初期化（デモ用の簡易実装）
+    from src.infrastructure.repositories.sqlite_recording_repository import SqliteRecordingRepository
+    from src.infrastructure.repositories.sqlite_settings_repository import SqliteSettingsRepository
+    from src.infrastructure.services.encryption_service import EncryptionService
+    from src.infrastructure.services.file_service import FileService
+    
+    # 簡易スケジュールリポジトリのデモ実装
+    class DemoScheduleRepository:
+        def __init__(self):
+            self._schedules = {}
+        
+        async def add(self, schedule):
+            self._schedules[schedule.schedule_id] = schedule
+            return Ok(schedule.schedule_id)
+        
+        async def get_by_id(self, schedule_id):
+            if schedule_id in self._schedules:
+                return Ok(self._schedules[schedule_id])
+            return Err(ErrorInfo("NOT_FOUND", "スケジュールが見つかりません"))
+        
+        async def get_all(self):
+            return Ok(list(self._schedules.values()))
+        
+        async def remove(self, schedule_id):
+            if schedule_id in self._schedules:
+                del self._schedules[schedule_id]
+                return Ok(True)
+            return Err(ErrorInfo("NOT_FOUND", "スケジュールが見つかりません"))
+        
+        async def update_status(self, schedule_id, status):
+            if schedule_id in self._schedules:
+                self._schedules[schedule_id].status = status
+                return Ok(self._schedules[schedule_id])
+            return Err(ErrorInfo("NOT_FOUND", "スケジュールが見つかりません"))
+    
+    schedule_repo = DemoScheduleRepository()
+    
+    encryption_service = EncryptionService()
+    encryption_service.set_master_password("demo_password")
+    file_service = FileService()
+    
+    recording_repo = SqliteRecordingRepository(
+        encryption_service=encryption_service,
+        file_service=file_service
+    )
+    settings_repo = SqliteSettingsRepository(
+        encryption_service=encryption_service,
+        file_service=file_service
+    )
     
     # プレイバックサービス（簡易版）
     from src.infrastructure import WindowsApiService, KeyboardAdapter, MouseAdapter
