@@ -1,0 +1,27 @@
+# EZRPA v2.0 基本依存関係 (Windows環境専用)
+
+# GUI Framework
+PySide6>=6.5.0
+
+# Database
+SQLAlchemy>=2.0.0
+alembic>=1.11.0
+
+# 暗号化
+cryptography>=41.0.0
+
+# Windows API
+pywin32>=306; sys_platform == "win32"
+
+# 非同期処理
+asyncio-mqtt>=0.13.0
+aiofiles>=23.0.0
+
+# ログ
+loguru>=0.7.0
+
+# 設定管理
+PyYAML>=6.0
+
+# 型ヒント
+typing-extensions>=4.7.0
