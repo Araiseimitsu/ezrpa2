@@ -131,3 +131,6 @@ Desktop.ini
 
 # Custom for this project
 # Add any project-specific ignores here
+
+# YoYo AI version control directory
+.yoyo/
