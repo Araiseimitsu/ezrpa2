@@ -4,43 +4,80 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-EZRPA v2.0 is a comprehensive redesign of an RPA (Robotic Process Automation) application implementing Clean Architecture principles. This repository contains the architectural planning documentation for a complete rewrite focused on maintainability, testability, and scalability.
+EZRPA v2.0 is a comprehensive redesign of an RPA (Robotic Process Automation) application implementing Clean Architecture principles. This repository contains a complete implementation with all layers fully developed and functional.
+
+## Current Status (2025-06-18)
+
+**Phase 6: テスト統合・品質保証フェーズ** - **進行中**
+
+### 完了済みフェーズ
+- ✅ **Phase 1-2**: Core層、Domain層 - 依存性注入、イベントバス、エンティティ
+- ✅ **Phase 3**: Infrastructure層 - リポジトリ実装、暗号化、Windows API統合  
+- ✅ **Phase 4**: Application層 - アプリケーションサービス、DTO、ユースケース
+- ✅ **Phase 5**: Presentation層 - MVVM パターン、ViewModels、Views、完全なGUI実装
+
+### 現在の作業 (Phase 6)
+🔄 **テスト基盤構築** (進行中)
+- ✅ pytest設定の最適化とプラグイン統合
+- ✅ テストデータ・フィクスチャシステムの構築  
+- ✅ モック・ファクトリーパターンの実装
+- ✅ テスト環境用DIコンテナの構築
+- 🔄 Domain層の単体テスト実装 (進行中)
+  - ✅ Recording エンティティテスト
+  - ✅ Action エンティティテスト  
+  - ✅ Schedule エンティティテスト
+  - ✅ Value Objects テスト
+- ⏳ Application層の単体テスト実装 (待機中)
+- ⏳ Infrastructure層の単体テスト実装 (待機中)
+- ⏳ Presentation層の単体テスト実装 (待機中)
 
 ## Architecture Design
 
 The project follows Clean Architecture with the following layers:
-- **Domain Layer**: Business entities and core logic
-- **Application Layer**: Use cases and application services  
-- **Infrastructure Layer**: External dependencies (database, file system, APIs)
-- **Presentation Layer**: UI components using MVVM pattern
+- **Core Layer**: DI container, event bus, result pattern, threading
+- **Domain Layer**: Business entities (Recording, Action, Schedule) and value objects
+- **Infrastructure Layer**: Repository implementations, encryption, file services, Windows API
+- **Application Layer**: Application services, DTOs, use cases, event handlers
+- **Presentation Layer**: MVVM pattern with ViewModels, Views, and GUI components
 
 Key architectural patterns implemented:
-- Dependency Injection Container
-- Event Bus for decoupled communication
-- Result Pattern for error handling
-- Repository Pattern for data access
-- MVVM for UI layer
+- Dependency Injection Container with service registration
+- Event Bus for decoupled communication between layers
+- Result Pattern for functional error handling
+- Repository Pattern for data persistence abstraction
+- MVVM Pattern for UI layer separation
+- Factory Pattern for test data generation
+- Command Pattern for UI actions
 
 ## Project Structure
 
 ```
 src/
-├── core/              # DI container, event bus, result pattern
-├── domain/            # Business entities and domain services
-├── infrastructure/    # External services and repositories
-├── application/       # Use cases and DTOs  
-├── presentation/      # GUI views, viewmodels, components
+├── core/              # DI container, event bus, result pattern, threading
+├── domain/            # Business entities, value objects, repository interfaces
+├── infrastructure/    # Repository implementations, external services, adapters
+├── application/       # Application services, DTOs, use cases, event handlers
+├── presentation/      # GUI components, ViewModels, Views (MVVM)
 └── shared/           # Common utilities and constants
+
+tests/
+├── unit/             # Unit tests for each layer
+├── integration/      # Integration tests between layers  
+├── e2e/             # End-to-end tests
+├── fixtures/        # Test data and fixtures
+├── conftest.py      # Pytest configuration and global fixtures
+├── factories.py     # Test data factory classes
+└── test_container.py # Test-specific DI container
 ```
 
-## Development Workflow
+## Development Workflow - Updated
 
-The project follows an 8-week implementation plan:
-1. **Phase 1 (2 weeks)**: Architecture foundation and infrastructure
-2. **Phase 2 (2 weeks)**: Core recording/playback services
-3. **Phase 3 (1 week)**: Data layer and security
-4. **Phase 4 (2 weeks)**: UI integration with MVVM
-5. **Phase 5 (1 week)**: Testing and optimization
+実装計画 (8週間):
+1. ✅ **Phase 1-2 (4週間)**: アーキテクチャ基盤とコアサービス - **完了**
+2. ✅ **Phase 3 (1週間)**: データ層とセキュリティ - **完了**  
+3. ✅ **Phase 4 (2週間)**: アプリケーション層統合 - **完了**
+4. ✅ **Phase 5 (1週間)**: プレゼンテーション層(MVVM) - **完了**
+5. 🔄 **Phase 6 (3週間)**: テスト統合・品質保証 - **進行中**
 
 ## Key Technical Requirements
 

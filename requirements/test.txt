@@ -1,0 +1,54 @@
+# テスト基盤
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0
+pytest-mock>=3.10.0
+pytest-xdist>=3.0.0
+pytest-html>=3.1.0
+pytest-timeout>=2.1.0
+
+# モック・ファクトリー
+factory-boy>=3.2.0
+faker>=18.0.0
+
+# テストデータ
+pydantic-factories>=1.17.0
+
+# パフォーマンステスト
+pytest-benchmark>=4.0.0
+memory-profiler>=0.60.0
+
+# セキュリティテスト
+bandit>=1.7.0
+safety>=2.3.0
+
+# GUIテスト（PySide6用）
+pytest-qt>=4.2.0
+
+# データベーステスト
+pytest-database>=0.3.0
+
+# HTTPテスト（将来のWeb API用）
+responses>=0.23.0
+httpx>=0.24.0
+
+# レポート・メトリクス
+pytest-json-report>=1.5.0
+pytest-metadata>=3.0.0
+
+# デバッグ支援
+pytest-pdb>=0.2.0
+pytest-sugar>=0.9.0
+
+# 型チェック
+mypy>=1.0.0
+types-requests>=2.0.0
+
+# リンタ・フォーマッタ
+black>=23.0.0
+isort>=5.12.0
+flake8>=6.0.0
+pylint>=2.17.0
+
+# 依存関係解析
+pipdeptree>=2.7.0
