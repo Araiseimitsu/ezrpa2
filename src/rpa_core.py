@@ -8,9 +8,12 @@ import time
 import json
 import threading
 from datetime import datetime
-from typing import List, Dict, Any, Optional, Callable
+from typing import List, Dict, Any, Optional, Callable, Set
 from dataclasses import dataclass, asdict
 from pathlib import Path
+
+# ショートカット設定のインポート
+from src.domain.entities.shortcut_settings import ShortcutSettings, KeyModifier, KeyCombination
 
 # Windows API imports
 try:
@@ -49,7 +52,7 @@ class RPAAction:
 class RPARecorder:
     """RPA記録クラス"""
 
-    def __init__(self):
+    def __init__(self, shortcut_settings: Optional[ShortcutSettings] = None):
         self.is_recording = False
         self.is_paused = False
         self.actions: List[RPAAction] = []
@@ -57,10 +60,26 @@ class RPARecorder:
         self.mouse_listener = None
         self.keyboard_listener = None
         self.on_action_callback: Optional[Callable[[RPAAction], None]] = None
+        self.on_rpa_control_callback: Optional[Callable[[str], None]] = None
+        
+        # ショートカット設定
+        self.shortcut_settings = shortcut_settings or ShortcutSettings()
+        
+        # 現在押されているキーの状態管理
+        self.pressed_modifiers: Set[KeyModifier] = set()
+        self.last_key = ""
 
     def set_action_callback(self, callback: Callable[[RPAAction], None]):
         """アクション記録時のコールバック設定"""
         self.on_action_callback = callback
+    
+    def set_rpa_control_callback(self, callback: Callable[[str], None]):
+        """RPA制御コールバック設定"""
+        self.on_rpa_control_callback = callback
+    
+    def update_shortcut_settings(self, settings: ShortcutSettings):
+        """ショートカット設定を更新"""
+        self.shortcut_settings = settings
 
     def start_recording(self) -> bool:
         """記録開始"""
@@ -148,6 +167,18 @@ class RPARecorder:
         except AttributeError:
             key_name = str(key)
 
+        # 修飾キーの状態を更新
+        self._update_modifier_state(key, True)
+        
+        # システムキーの除外チェック
+        if self._should_exclude_key(key_name):
+            return  # システムに処理を委譲
+        
+        # RPA制御キーのチェック
+        if self._check_rpa_control_key(key_name):
+            return  # RPA制御処理済み
+        
+        # 通常のキー記録
         self._record_action("key_press", {"key": key_name})
 
     def _on_key_release(self, key):
@@ -157,7 +188,84 @@ class RPARecorder:
         except AttributeError:
             key_name = str(key)
 
+        # 修飾キーの状態を更新
+        self._update_modifier_state(key, False)
+        
+        # システムキーの除外チェック
+        if self._should_exclude_key(key_name):
+            return  # システムに処理を委譲
+        
+        # 通常のキー記録
         self._record_action("key_release", {"key": key_name})
+    
+    def _update_modifier_state(self, key, pressed: bool):
+        """修飾キーの状態を更新"""
+        if not HAS_PYNPUT:
+            return
+        
+        try:
+            from pynput.keyboard import Key
+            
+            if key == Key.ctrl or key == Key.ctrl_l or key == Key.ctrl_r:
+                if pressed:
+                    self.pressed_modifiers.add(KeyModifier.CTRL)
+                else:
+                    self.pressed_modifiers.discard(KeyModifier.CTRL)
+            elif key == Key.alt or key == Key.alt_l or key == Key.alt_r:
+                if pressed:
+                    self.pressed_modifiers.add(KeyModifier.ALT)
+                else:
+                    self.pressed_modifiers.discard(KeyModifier.ALT)
+            elif key == Key.shift or key == Key.shift_l or key == Key.shift_r:
+                if pressed:
+                    self.pressed_modifiers.add(KeyModifier.SHIFT)
+                else:
+                    self.pressed_modifiers.discard(KeyModifier.SHIFT)
+            elif key == Key.cmd or key == Key.cmd_l or key == Key.cmd_r:
+                if pressed:
+                    self.pressed_modifiers.add(KeyModifier.WIN)
+                else:
+                    self.pressed_modifiers.discard(KeyModifier.WIN)
+        except Exception:
+            pass
+    
+    def _should_exclude_key(self, key_name: str) -> bool:
+        """キーが除外対象かチェック"""
+        # 修飾キー単体は記録対象外
+        modifier_keys = ['Key.ctrl', 'Key.ctrl_l', 'Key.ctrl_r',
+                        'Key.alt', 'Key.alt_l', 'Key.alt_r',
+                        'Key.shift', 'Key.shift_l', 'Key.shift_r',
+                        'Key.cmd', 'Key.cmd_l', 'Key.cmd_r']
+        
+        if key_name in modifier_keys:
+            return True
+        
+        # ショートカット設定による除外チェック
+        clean_key = self._clean_key_name(key_name)
+        return self.shortcut_settings.should_exclude_key(self.pressed_modifiers, clean_key)
+    
+    def _check_rpa_control_key(self, key_name: str) -> bool:
+        """RPA制御キーかチェック"""
+        clean_key = self._clean_key_name(key_name)
+        is_control, action = self.shortcut_settings.is_rpa_control_key(self.pressed_modifiers, clean_key)
+        
+        if is_control and self.on_rpa_control_callback:
+            self.on_rpa_control_callback(action)
+            return True
+        
+        return False
+    
+    def _clean_key_name(self, key_name: str) -> str:
+        """キー名をクリーンアップ"""
+        # "Key.xxx" 形式から "xxx" を抽出
+        if key_name.startswith("Key."):
+            return key_name[4:]
+        
+        # "'x'" 形式から "x" を抽出
+        if key_name.startswith("'") and key_name.endswith("'") and len(key_name) == 3:
+            return key_name[1]
+        
+        return key_name.lower()
 
 
 class RPAPlayer:
@@ -341,12 +449,22 @@ class RPAPlayer:
 class RPAManager:
     """RPA管理クラス"""
 
-    def __init__(self):
-        self.recorder = RPARecorder()
+    def __init__(self, shortcut_settings: Optional[ShortcutSettings] = None):
+        self.shortcut_settings = shortcut_settings or ShortcutSettings()
+        self.recorder = RPARecorder(self.shortcut_settings)
         self.player = RPAPlayer()
         self.recordings: Dict[str, List[RPAAction]] = {}
         self.data_dir = Path("recordings")
         self.data_dir.mkdir(exist_ok=True)
+    
+    def set_rpa_control_callback(self, callback: Callable[[str], None]):
+        """RPA制御コールバック設定"""
+        self.recorder.set_rpa_control_callback(callback)
+    
+    def update_shortcut_settings(self, settings: ShortcutSettings):
+        """ショートカット設定を更新"""
+        self.shortcut_settings = settings
+        self.recorder.update_shortcut_settings(settings)
 
     def start_recording(self, name: str) -> bool:
         """記録開始"""

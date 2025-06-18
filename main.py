@@ -21,6 +21,10 @@ from PySide6.QtCore import QTimer, QObject, Signal, QThread
 # RPA Core imports
 from src.rpa_core import RPAManager, RPAAction
 
+# ショートカット設定のインポート
+from src.domain.entities.shortcut_settings import ShortcutSettings
+from src.presentation.gui.views.settings_window import SettingsWindow
+
 # Windows環境でのパス設定
 if sys.platform == "win32":
     # Windows固有の設定
@@ -193,6 +197,7 @@ class ConfigManager:
                 "max_file_size": "10MB",
                 "backup_count": 5,
             },
+            "shortcuts": ShortcutSettings().to_dict(),
         }
 
     def ensure_config_exists(self) -> BoolResult:
@@ -610,9 +615,70 @@ def main() -> int:
                 self.timer = QTimer()
 
         recording_state = RecordingState()
-        rpa_manager = RPAManager()
+        
+        # ショートカット設定を読み込み
+        shortcuts_config = config.get("shortcuts", {})
+        shortcut_settings = ShortcutSettings.from_dict(shortcuts_config)
+        
+        # ショートカット設定を使ってRPAManager初期化
+        rpa_manager = RPAManager(shortcut_settings)
         current_recording_name = None
         floating_window = None  # フローティングウィンドウの参照
+        
+        # ショートカット設定更新関数
+        def update_shortcut_settings(new_settings: ShortcutSettings):
+            """ショートカット設定更新"""
+            from datetime import datetime
+            try:
+                # RPAManagerの設定を更新
+                rpa_manager.update_shortcut_settings(new_settings)
+                
+                # 設定ファイルに保存
+                config["shortcuts"] = new_settings.to_dict()
+                with open(config_manager.config_file, "w", encoding="utf-8") as f:
+                    json.dump(config, f, indent=2, ensure_ascii=False)
+                
+                logger.info("⚙ ショートカット設定が更新されました")
+                log_text.append(
+                    f"{datetime.now().strftime('%H:%M:%S')} - INFO - ⚙ ショートカット設定が更新されました"
+                )
+                
+            except Exception as e:
+                logger.error(f"ショートカット設定の更新に失敗しました: {e}")
+                log_text.append(
+                    f"{datetime.now().strftime('%H:%M:%S')} - ERROR - ショートカット設定の更新に失敗しました: {e}"
+                )
+        
+        # RPA制御コールバック設定
+        def handle_rpa_control(action: str):
+            """RPA制御ホットキー処理"""
+            from datetime import datetime
+            
+            if action == "start_stop":
+                if recording_state.is_recording:
+                    stop_recording()
+                    log_text.append(
+                        f"{datetime.now().strftime('%H:%M:%S')} - INFO - 🔥 ホットキーで記録を停止しました"
+                    )
+                else:
+                    start_recording()
+                    log_text.append(
+                        f"{datetime.now().strftime('%H:%M:%S')} - INFO - 🔥 ホットキーで記録を開始しました"
+                    )
+            elif action == "pause_resume":
+                if recording_state.is_recording:
+                    pause_resume_recording()
+                    log_text.append(
+                        f"{datetime.now().strftime('%H:%M:%S')} - INFO - 🔥 ホットキーで一時停止/再開しました"
+                    )
+            elif action == "emergency_stop":
+                if recording_state.is_recording:
+                    stop_recording()
+                    log_text.append(
+                        f"{datetime.now().strftime('%H:%M:%S')} - INFO - 🚨 緊急停止ホットキーで記録を停止しました"
+                    )
+        
+        rpa_manager.set_rpa_control_callback(handle_rpa_control)
 
         # フローティング記録停止ウィンドウクラス
         class FloatingRecordingWindow(QWidget):
@@ -629,7 +695,7 @@ def main() -> int:
                 self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
                 # ウィンドウサイズとスタイル
-                self.setFixedSize(220, 130)
+                self.setFixedSize(220, 140)
                 self.setStyleSheet(
                     """
                     QWidget {
@@ -642,8 +708,8 @@ def main() -> int:
 
                 # レイアウト
                 layout = QVBoxLayout()
-                layout.setContentsMargins(10, 10, 10, 12)
-                layout.setSpacing(3)
+                layout.setContentsMargins(10, 10, 10, 15)
+                layout.setSpacing(4)
 
                 # ステータスラベル
                 self.status_label = QLabel("🔴 記録中")
@@ -699,8 +765,8 @@ def main() -> int:
                         border-radius: 5px;
                         font-size: 11px;
                         font-weight: bold;
-                        padding: 14px 8px;
-                        min-height: 32px;
+                        padding: 12px 8px;
+                        min-height: 30px;
                     }
                     QPushButton:hover {
                         background-color: rgba(108, 117, 125, 255);
