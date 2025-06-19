@@ -85,14 +85,21 @@ class MainViewModel(BaseViewModel):
         self.add_command('toggle_sidebar', Command(self._toggle_sidebar))
         self.add_command('show_about', Command(self._show_about))
         self.add_command('check_updates', AsyncCommand(self._check_updates_async))
+        self.add_command('apply_settings', Command(self._apply_settings))
         
         self.add_command('exit_application', AsyncCommand(self._exit_application_async))
     
     def _subscribe_to_events(self):
         """ドメインイベントの購読"""
-        # Note: For demo purposes, using simplified event handling
-        # In production, these would be proper Event types and handled by EventBus
-        pass
+        if self._event_bus:
+            # ショートカット設定更新イベントの購読
+            self._event_bus.subscribe("shortcut_settings_updated", self._on_shortcut_settings_updated)
+            
+            # ホットキーサービスイベントの購読
+            self._event_bus.subscribe("hotkey_service_started", self._on_hotkey_service_started)
+            self._event_bus.subscribe("hotkey_service_stopped", self._on_hotkey_service_stopped)
+            self._event_bus.subscribe("custom_command_executed", self._on_custom_command_executed)
+            self._event_bus.subscribe("custom_command_error", self._on_custom_command_error)
     
     # プロパティ
     @property
@@ -413,6 +420,24 @@ Copyright © 2025 All rights reserved.
         except Exception as e:
             self.add_error(f"アップデート確認エラー: {str(e)}", str(e), "UPDATE_CHECK_ERROR")
     
+    def _apply_settings(self, settings=None):
+        """設定適用"""
+        try:
+            if settings:
+                # ショートカット設定をイベントバスで通知
+                if self._event_bus:
+                    self._event_bus.emit("shortcut_settings_updated", {
+                        "settings": settings,
+                        "timestamp": datetime.now(timezone.utc)
+                    })
+                
+                self.add_notification("設定", "ショートカット設定が適用されました", "SUCCESS", 3000)
+            else:
+                self.add_notification("設定", "設定の適用をリクエストしました", "INFO", 2000)
+                
+        except Exception as e:
+            self.add_error("設定適用エラー", str(e), "SETTINGS_APPLICATION_ERROR")
+    
     async def _exit_application_async(self, parameter=None):
         """アプリケーション終了"""
         try:
@@ -510,6 +535,34 @@ Copyright © 2025 All rights reserved.
         self.notify_property_changed('is_schedule_available')
         reason = event_data.get('reason', 'user_request')
         self.add_notification("スケジューラー", f"スケジューラーが停止されました (理由: {reason})", "INFO")
+    
+    def _on_shortcut_settings_updated(self, event_data):
+        """ショートカット設定更新イベントハンドラー"""
+        self.add_notification("設定", "ショートカット設定が更新されました", "SUCCESS")
+    
+    def _on_hotkey_service_started(self, event_data):
+        """ホットキーサービス開始イベントハンドラー"""
+        self.add_notification("ホットキー", "グローバルホットキー監視を開始しました", "SUCCESS")
+    
+    def _on_hotkey_service_stopped(self, event_data):
+        """ホットキーサービス停止イベントハンドラー"""
+        self.add_notification("ホットキー", "グローバルホットキー監視を停止しました", "INFO")
+    
+    def _on_custom_command_executed(self, event_data):
+        """カスタムコマンド実行イベントハンドラー"""
+        command_name = event_data.get('command_name', '不明')
+        success = event_data.get('success', False)
+        
+        if success:
+            self.add_notification("コマンド実行", f"コマンド '{command_name}' を実行しました", "SUCCESS", 2000)
+        else:
+            self.add_notification("コマンド実行", f"コマンド '{command_name}' の実行に失敗しました", "WARNING", 3000)
+    
+    def _on_custom_command_error(self, event_data):
+        """カスタムコマンドエラーイベントハンドラー"""
+        command_name = event_data.get('command_name', '不明')
+        error = event_data.get('error', '不明なエラー')
+        self.add_error(f"コマンドエラー [{command_name}]", error, "CUSTOM_COMMAND_ERROR")
     
     # リソース破棄
     def _dispose_resources(self):

@@ -162,6 +162,18 @@ class Container(IContainer):
             else:  # TRANSIENT
                 return cast(T, descriptor.implementation())
     
+    def resolve(self, interface: Type[T]) -> T:
+        """
+        サービスを解決（getメソッドのエイリアス）
+        
+        Args:
+            interface: 取得するサービスのインターフェース
+            
+        Returns:
+            サービスインスタンス
+        """
+        return self.get(interface)
+    
     def is_registered(self, interface: Type[T]) -> bool:
         """
         サービスが登録されているかチェック
