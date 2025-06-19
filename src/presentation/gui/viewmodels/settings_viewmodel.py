@@ -5,9 +5,8 @@
 """
 
 from typing import List, Optional, Callable, Set, Tuple
-from PySide6.QtCore import QObject, Signal, Property
 from src.domain.entities.shortcut_settings import ShortcutSettings, KeyCombination, KeyModifier
-from src.presentation.gui.viewmodels.base_viewmodel import BaseViewModel
+from src.presentation.gui.viewmodels.base_viewmodel import BaseViewModel, Command, Signal
 
 
 class SettingsViewModel(BaseViewModel):
@@ -54,8 +53,6 @@ class SettingsViewModel(BaseViewModel):
             self._settings.exclude_system_keys = value
             self._emit_settings_changed()
     
-    exclude_system_keys = Property(bool, get_exclude_system_keys, set_exclude_system_keys, notify=settings_changed)
-    
     def get_exclude_clipboard_keys(self) -> bool:
         return self._settings.exclude_clipboard_keys
     
@@ -63,8 +60,6 @@ class SettingsViewModel(BaseViewModel):
         if self._settings.exclude_clipboard_keys != value:
             self._settings.exclude_clipboard_keys = value
             self._emit_settings_changed()
-    
-    exclude_clipboard_keys = Property(bool, get_exclude_clipboard_keys, set_exclude_clipboard_keys, notify=settings_changed)
     
     def get_exclude_window_keys(self) -> bool:
         return self._settings.exclude_window_keys
@@ -74,8 +69,6 @@ class SettingsViewModel(BaseViewModel):
             self._settings.exclude_window_keys = value
             self._emit_settings_changed()
     
-    exclude_window_keys = Property(bool, get_exclude_window_keys, set_exclude_window_keys, notify=settings_changed)
-    
     def get_exclude_windows_keys(self) -> bool:
         return self._settings.exclude_windows_keys
     
@@ -84,8 +77,6 @@ class SettingsViewModel(BaseViewModel):
             self._settings.exclude_windows_keys = value
             self._emit_settings_changed()
     
-    exclude_windows_keys = Property(bool, get_exclude_windows_keys, set_exclude_windows_keys, notify=settings_changed)
-    
     def get_exclude_app_keys(self) -> bool:
         return self._settings.exclude_app_keys
     
@@ -93,8 +84,6 @@ class SettingsViewModel(BaseViewModel):
         if self._settings.exclude_app_keys != value:
             self._settings.exclude_app_keys = value
             self._emit_settings_changed()
-    
-    exclude_app_keys = Property(bool, get_exclude_app_keys, set_exclude_app_keys, notify=settings_changed)
     
     # カスタム除外キー管理
     def get_custom_excluded_keys(self) -> List[str]:
@@ -344,3 +333,15 @@ class SettingsViewModel(BaseViewModel):
         self.settings_changed.emit()
         if self._on_settings_changed_callback:
             self._on_settings_changed_callback(self._settings)
+    
+    # 抽象メソッドの実装
+    async def initialize_async(self):
+        """非同期初期化"""
+        # 設定画面では特別な非同期初期化は不要
+        pass
+    
+    async def _refresh_async(self, parameter=None):
+        """リフレッシュ処理"""
+        # 設定画面では特別なリフレッシュ処理は不要
+        # 必要に応じて設定ファイルから再読み込みなどを実装
+        pass

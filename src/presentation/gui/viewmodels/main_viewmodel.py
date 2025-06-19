@@ -19,6 +19,7 @@ from ....application.services.schedule_application_service import ScheduleApplic
 from ....application.dto.recording_dto import RecordingStatsDTO
 from ....application.dto.playback_dto import PlaybackHistoryDTO
 from ....application.dto.schedule_dto import ScheduleStatsDTO
+from ....domain.entities.shortcut_settings import ShortcutSettings
 
 
 class MainViewModel(BaseViewModel):
@@ -28,7 +29,8 @@ class MainViewModel(BaseViewModel):
                  recording_service: RecordingApplicationService,
                  playback_service: PlaybackApplicationService,
                  schedule_service: ScheduleApplicationService,
-                 event_bus: Optional[EventBus] = None):
+                 event_bus: Optional[EventBus] = None,
+                 shortcut_settings: Optional[ShortcutSettings] = None):
         """
         初期化
         
@@ -37,6 +39,7 @@ class MainViewModel(BaseViewModel):
             playback_service: 再生アプリケーションサービス
             schedule_service: スケジュールアプリケーションサービス
             event_bus: イベントバス
+            shortcut_settings: ショートカット設定
         """
         super().__init__(event_bus)
         
@@ -44,6 +47,9 @@ class MainViewModel(BaseViewModel):
         self._recording_service = recording_service
         self._playback_service = playback_service
         self._schedule_service = schedule_service
+        
+        # ショートカット設定
+        self._shortcut_settings = shortcut_settings
         
         # ビューモデル状態
         self._current_view = "dashboard"
@@ -186,6 +192,17 @@ class MainViewModel(BaseViewModel):
     def system_info(self) -> Dict[str, Any]:
         """システム情報"""
         return self._system_info
+    
+    @property
+    def shortcut_settings(self):
+        """ショートカット設定"""
+        return self._shortcut_settings
+    
+    @shortcut_settings.setter
+    def shortcut_settings(self, value):
+        """ショートカット設定を更新"""
+        self._shortcut_settings = value
+        self.notify_property_changed('shortcut_settings')
     
     # 初期化
     async def initialize_async(self):

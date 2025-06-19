@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(venv/Scripts/python.exe main.py:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(python:*)"
     ],
     "deny": []
   }

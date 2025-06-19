@@ -652,8 +652,11 @@ class MainWindow(QMainWindow):
         try:
             from .settings_window import SettingsWindow
             
+            # 現在のショートカット設定を取得
+            current_settings = self._get_current_shortcut_settings()
+            
             # 設定ダイアログを作成
-            settings_dialog = SettingsWindow(parent=self)
+            settings_dialog = SettingsWindow(shortcut_settings=current_settings, parent=self)
             
             # 設定適用時のハンドラーを接続
             settings_dialog.settings_applied.connect(self._on_settings_applied)
@@ -668,6 +671,21 @@ class MainWindow(QMainWindow):
         """環境設定を開く"""
         # 将来的に詳細な環境設定画面を実装
         self._on_open_settings()  # 現在はショートカット設定と同じ
+    
+    def _get_current_shortcut_settings(self):
+        """現在のショートカット設定を取得"""
+        try:
+            # ViewModelからショートカット設定を取得
+            if hasattr(self._viewmodel, 'shortcut_settings') and self._viewmodel.shortcut_settings:
+                return self._viewmodel.shortcut_settings
+            else:
+                # デフォルト設定を返す
+                from ....domain.entities.shortcut_settings import ShortcutSettings
+                return ShortcutSettings()
+        except Exception as e:
+            # デフォルト設定を返す
+            from ....domain.entities.shortcut_settings import ShortcutSettings
+            return ShortcutSettings()
     
     def _on_settings_applied(self, settings):
         """設定適用時の処理"""

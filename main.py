@@ -463,20 +463,39 @@ def main() -> int:
 
         def show_settings():
             from datetime import datetime
-            from PySide6.QtWidgets import QMessageBox
 
             logger.info("⚙ 設定画面を開きます")
             log_text.append(
                 f"{datetime.now().strftime('%H:%M:%S')} - INFO - ⚙ 設定画面を開きます"
             )
 
-            QMessageBox.information(
-                main_window,
-                "設定",
-                f"EZRPA v{APP_VERSION} 設定画面\n\n以下の設定が利用可能です:\n\n"
-                "• 記録設定\n• 再生設定\n• UI設定\n• セキュリティ設定\n• ログ設定\n\n"
-                "(この機能は今後実装予定です)",
-            )
+            try:
+                # SettingsWindowを開く
+                settings_dialog = SettingsWindow(shortcut_settings=shortcut_settings, parent=main_window)
+                
+                # 設定適用時のハンドラーを接続
+                def on_settings_applied(new_settings):
+                    update_shortcut_settings(new_settings)
+                    log_text.append(
+                        f"{datetime.now().strftime('%H:%M:%S')} - INFO - ✅ ショートカット設定が適用されました"
+                    )
+                
+                settings_dialog.settings_applied.connect(on_settings_applied)
+                
+                # ダイアログを表示
+                settings_dialog.exec()
+                
+            except Exception as e:
+                from PySide6.QtWidgets import QMessageBox
+                logger.error(f"設定画面エラー: {e}")
+                log_text.append(
+                    f"{datetime.now().strftime('%H:%M:%S')} - ERROR - 設定画面エラー: {e}"
+                )
+                QMessageBox.critical(
+                    main_window,
+                    "設定画面エラー", 
+                    f"設定画面の表示に失敗しました:\n{str(e)}"
+                )
 
         def show_log_viewer():
             from datetime import datetime
