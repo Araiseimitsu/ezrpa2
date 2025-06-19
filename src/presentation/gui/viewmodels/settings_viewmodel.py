@@ -4,7 +4,7 @@
 ショートカットキー設定のビジネスロジックを管理します。
 """
 
-from typing import List, Optional, Callable
+from typing import List, Optional, Callable, Set, Tuple
 from PySide6.QtCore import QObject, Signal, Property
 from src.domain.entities.shortcut_settings import ShortcutSettings, KeyCombination, KeyModifier
 from src.presentation.gui.viewmodels.base_viewmodel import BaseViewModel
@@ -250,6 +250,66 @@ class SettingsViewModel(BaseViewModel):
             return True
         except Exception as e:
             self.error_occurred.emit(f"設定インポートエラー: {str(e)}")
+            return False
+    
+    # カスタムショートカットコマンド管理
+    def get_custom_shortcut_commands(self) -> List["CustomShortcutCommand"]:
+        """カスタムショートカットコマンドを取得"""
+        return self._settings.get_custom_shortcut_commands()
+    
+    def add_custom_shortcut_command(self, command: "CustomShortcutCommand") -> bool:
+        """カスタムショートカットコマンドを追加"""
+        try:
+            if self._settings.add_custom_shortcut_command(command):
+                self._emit_settings_changed()
+                return True
+            else:
+                self.error_occurred.emit("キー組み合わせが重複しているか、無効な設定です")
+                return False
+        except Exception as e:
+            self.error_occurred.emit(f"コマンド追加エラー: {str(e)}")
+            return False
+    
+    def update_custom_shortcut_command(self, command: "CustomShortcutCommand") -> bool:
+        """カスタムショートカットコマンドを更新"""
+        try:
+            if self._settings.update_custom_shortcut_command(command):
+                self._emit_settings_changed()
+                return True
+            else:
+                self.error_occurred.emit("コマンドの更新に失敗しました")
+                return False
+        except Exception as e:
+            self.error_occurred.emit(f"コマンド更新エラー: {str(e)}")
+            return False
+    
+    def remove_custom_shortcut_command(self, command_id: str) -> bool:
+        """カスタムショートカットコマンドを削除"""
+        try:
+            if self._settings.remove_custom_shortcut_command(command_id):
+                self._emit_settings_changed()
+                return True
+            else:
+                self.error_occurred.emit("コマンドの削除に失敗しました")
+                return False
+        except Exception as e:
+            self.error_occurred.emit(f"コマンド削除エラー: {str(e)}")
+            return False
+    
+    def validate_custom_command_key(self, modifiers: Set[KeyModifier], key: str, exclude_command_id: str = "") -> Tuple[bool, str]:
+        """カスタムコマンドのキー組み合わせを検証"""
+        return self._settings.has_key_conflict(modifiers, key, exclude_command_id)
+    
+    def execute_custom_command(self, command_id: str) -> bool:
+        """カスタムコマンドを実行"""
+        try:
+            commands = self.get_custom_shortcut_commands()
+            for command in commands:
+                if command.id == command_id:
+                    return command.execute()
+            return False
+        except Exception as e:
+            self.error_occurred.emit(f"コマンド実行エラー: {str(e)}")
             return False
     
     # 設定の検証

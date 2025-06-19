@@ -615,45 +615,47 @@ def main() -> int:
                 self.timer = QTimer()
 
         recording_state = RecordingState()
-        
+
         # ショートカット設定を読み込み
         shortcuts_config = config.get("shortcuts", {})
         shortcut_settings = ShortcutSettings.from_dict(shortcuts_config)
-        
+
         # ショートカット設定を使ってRPAManager初期化
         rpa_manager = RPAManager(shortcut_settings)
         current_recording_name = None
         floating_window = None  # フローティングウィンドウの参照
-        
+        floating_playback_window = None  # フローティング再生ウィンドウの参照
+
         # ショートカット設定更新関数
         def update_shortcut_settings(new_settings: ShortcutSettings):
             """ショートカット設定更新"""
             from datetime import datetime
+
             try:
                 # RPAManagerの設定を更新
                 rpa_manager.update_shortcut_settings(new_settings)
-                
+
                 # 設定ファイルに保存
                 config["shortcuts"] = new_settings.to_dict()
                 with open(config_manager.config_file, "w", encoding="utf-8") as f:
                     json.dump(config, f, indent=2, ensure_ascii=False)
-                
+
                 logger.info("⚙ ショートカット設定が更新されました")
                 log_text.append(
                     f"{datetime.now().strftime('%H:%M:%S')} - INFO - ⚙ ショートカット設定が更新されました"
                 )
-                
+
             except Exception as e:
                 logger.error(f"ショートカット設定の更新に失敗しました: {e}")
                 log_text.append(
                     f"{datetime.now().strftime('%H:%M:%S')} - ERROR - ショートカット設定の更新に失敗しました: {e}"
                 )
-        
+
         # RPA制御コールバック設定
         def handle_rpa_control(action: str):
             """RPA制御ホットキー処理"""
             from datetime import datetime
-            
+
             if action == "start_stop":
                 if recording_state.is_recording:
                     stop_recording()
@@ -677,7 +679,7 @@ def main() -> int:
                     log_text.append(
                         f"{datetime.now().strftime('%H:%M:%S')} - INFO - 🚨 緊急停止ホットキーで記録を停止しました"
                     )
-        
+
         rpa_manager.set_rpa_control_callback(handle_rpa_control)
 
         # フローティング記録停止ウィンドウクラス
@@ -823,6 +825,235 @@ def main() -> int:
             def mouseReleaseEvent(self, event):
                 """マウス離脱でドラッグ終了"""
                 self.dragging = False
+
+            def closeEvent(self, event):
+                """ウィンドウクローズイベント"""
+                global floating_window
+                if floating_window == self:
+                    floating_window = None
+                event.accept()
+
+        # フローティング再生停止ウィンドウクラス
+        class FloatingPlaybackWindow(QWidget):
+            """再生用フローティング停止ウィンドウ（記録用と一貫性のあるデザイン）"""
+
+            stop_requested = Signal()
+            pause_requested = Signal()
+
+            def __init__(self, recording_name: str, parent=None):
+                super().__init__(parent)
+                self.recording_name = recording_name
+                self.is_paused = False
+                self.setWindowTitle("EZRPA 再生中")
+                self.setWindowFlags(
+                    Qt.WindowType.WindowStaysOnTopHint
+                    | Qt.WindowType.FramelessWindowHint
+                    | Qt.WindowType.Tool
+                )
+                self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+
+                # ウィンドウサイズ（記録用と同じ）
+                self.setFixedSize(220, 140)
+                self.setStyleSheet(
+                    """
+                    QWidget {
+                        background-color: rgba(40, 167, 69, 230);
+                        border-radius: 10px;
+                        border: 2px solid rgba(255, 255, 255, 180);
+                    }
+                """
+                )
+
+                # レイアウト（記録用と同じマージン・スペーシング）
+                layout = QVBoxLayout()
+                layout.setContentsMargins(10, 10, 10, 15)
+                layout.setSpacing(4)
+
+                # ステータスラベル（記録用と同じフォントサイズ）
+                self.status_label = QLabel("▶ 再生中")
+                self.status_label.setStyleSheet(
+                    """
+                    QLabel {
+                        color: white;
+                        font-weight: bold;
+                        font-size: 12px;
+                        background-color: transparent;
+                        text-align: center;
+                    }
+                """
+                )
+                self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+                # 記録名表示（記録用の「時間表示」と同じスタイル）
+                display_name = (
+                    recording_name[:18] + "..."
+                    if len(recording_name) > 18
+                    else recording_name
+                )
+                self.recording_label = QLabel(display_name)
+                self.recording_label.setStyleSheet(
+                    """
+                    QLabel {
+                        color: white;
+                        font-size: 10px;
+                        background-color: transparent;
+                        text-align: center;
+                    }
+                """
+                )
+                self.recording_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+                # 進捗表示（記録用の「アクション数表示」と同じスタイル）
+                self.progress_label = QLabel("0/0 (0%)")
+                self.progress_label.setStyleSheet(
+                    """
+                    QLabel {
+                        color: white;
+                        font-size: 9px;
+                        background-color: transparent;
+                        text-align: center;
+                    }
+                """
+                )
+                self.progress_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+                # ボタンレイアウト（記録用は1つのボタンなので、2つのボタンを横並びに）
+                button_layout = QHBoxLayout()
+                button_layout.setSpacing(6)
+
+                # 一時停止ボタン（記録用と同じスタイルベース）
+                self.pause_btn = QPushButton("⏸")
+                self.pause_btn.setStyleSheet(
+                    """
+                    QPushButton {
+                        background-color: rgba(255, 193, 7, 200);
+                        color: black;
+                        border: 1px solid rgba(255, 255, 255, 100);
+                        border-radius: 5px;
+                        font-size: 11px;
+                        font-weight: bold;
+                        padding: 12px 8px;
+                        min-height: 30px;
+                        max-width: 40px;
+                    }
+                    QPushButton:hover {
+                        background-color: rgba(255, 193, 7, 255);
+                    }
+                    QPushButton:pressed {
+                        background-color: rgba(255, 176, 0, 255);
+                    }
+                """
+                )
+                self.pause_btn.clicked.connect(self.pause_requested.emit)
+
+                # 停止ボタン（記録用と全く同じスタイル）
+                self.stop_btn = QPushButton("⏹ 停止")
+                self.stop_btn.setStyleSheet(
+                    """
+                    QPushButton {
+                        background-color: rgba(108, 117, 125, 200);
+                        color: white;
+                        border: 1px solid rgba(255, 255, 255, 100);
+                        border-radius: 5px;
+                        font-size: 11px;
+                        font-weight: bold;
+                        padding: 12px 8px;
+                        min-height: 30px;
+                    }
+                    QPushButton:hover {
+                        background-color: rgba(108, 117, 125, 255);
+                    }
+                    QPushButton:pressed {
+                        background-color: rgba(90, 98, 104, 255);
+                    }
+                """
+                )
+                self.stop_btn.clicked.connect(self.stop_requested.emit)
+
+                button_layout.addWidget(self.pause_btn)
+                button_layout.addWidget(self.stop_btn)
+
+                layout.addWidget(self.status_label)
+                layout.addWidget(self.recording_label)
+                layout.addWidget(self.progress_label)
+                layout.addLayout(button_layout)
+                self.setLayout(layout)
+
+                # ドラッグ可能にする（記録用と同じ実装）
+                self.dragging = False
+                self.drag_position = None
+
+                # 画面の右上に配置（記録用ウィンドウより少し下に）
+                from PySide6.QtGui import QGuiApplication
+
+                screen = QGuiApplication.primaryScreen().geometry()
+                self.move(screen.width() - self.width() - 20, 180)
+
+            def update_progress(self, current: int, total: int):
+                """進捗を更新"""
+                if total > 0:
+                    percentage = int((current / total) * 100)
+                    self.progress_label.setText(f"{current}/{total} ({percentage}%)")
+                else:
+                    self.progress_label.setText("0/0 (0%)")
+
+            def set_paused_state(self, is_paused: bool):
+                """一時停止状態を設定"""
+                self.is_paused = is_paused
+                if is_paused:
+                    self.status_label.setText("⏸ 一時停止")
+                    self.pause_btn.setText("▶")
+                    # 一時停止時は黄色系（記録用の一時停止と同じ色）
+                    self.setStyleSheet(
+                        """
+                        QWidget {
+                            background-color: rgba(255, 193, 7, 230);
+                            border-radius: 10px;
+                            border: 2px solid rgba(255, 255, 255, 180);
+                        }
+                    """
+                    )
+                else:
+                    self.status_label.setText("▶ 再生中")
+                    self.pause_btn.setText("⏸")
+                    # 再生中は緑系
+                    self.setStyleSheet(
+                        """
+                        QWidget {
+                            background-color: rgba(40, 167, 69, 230);
+                            border-radius: 10px;
+                            border: 2px solid rgba(255, 255, 255, 180);
+                        }
+                    """
+                    )
+
+            # ドラッグ機能（記録用と同じ実装）
+            def mousePressEvent(self, event):
+                """マウス押下でドラッグ開始"""
+                if event.button() == Qt.MouseButton.LeftButton:
+                    self.dragging = True
+                    self.drag_position = (
+                        event.globalPosition().toPoint()
+                        - self.frameGeometry().topLeft()
+                    )
+                    event.accept()
+
+            def mouseMoveEvent(self, event):
+                """マウス移動でウィンドウドラッグ"""
+                if event.buttons() == Qt.MouseButton.LeftButton and self.dragging:
+                    self.move(event.globalPosition().toPoint() - self.drag_position)
+                    event.accept()
+
+            def mouseReleaseEvent(self, event):
+                """マウス離脱でドラッグ終了"""
+                self.dragging = False
+
+            def closeEvent(self, event):
+                """ウィンドウクローズイベント"""
+                global floating_playback_window
+                if floating_playback_window == self:
+                    floating_playback_window = None
+                event.accept()
 
         # 記録開始関数（実際のRPA機能統合）
         def start_recording():
@@ -1292,8 +1523,25 @@ def main() -> int:
                     log_text.append(
                         f"{datetime.now().strftime('%H:%M:%S')} - DEBUG - 🎬 再生進捗: {current}/{total} ({progress}%)"
                     )
+                    # フローティングウィンドウの進捗も更新
+                    if floating_playback_window:
+                        floating_playback_window.update_progress(current, total)
+
+                        # 再生完了シグナル用のオブジェクト
+
+            class PlaybackCompleteSignal(QObject):
+                completed = Signal()
+
+            playback_signal = PlaybackCompleteSignal()
 
             def on_playback_complete():
+                # UIスレッドにシグナルを送信
+                playback_signal.completed.emit()
+
+            def handle_playback_complete():
+                """UIスレッドで実行される再生完了処理"""
+                global floating_playback_window
+
                 play_btn.setEnabled(True)
                 stop_playback_btn.setEnabled(False)
                 play_btn.setText("▶ 再生")
@@ -1302,6 +1550,22 @@ def main() -> int:
                     f"{datetime.now().strftime('%H:%M:%S')} - INFO - ✅ RPA再生が完了しました"
                 )
                 status_bar.showMessage("✅ RPA再生完了")
+
+                # フローティングウィンドウを閉じる（UIスレッドで直接実行）
+                if floating_playback_window:
+                    logger.info("🗑️ 再生完了：フローティングウィンドウを閉じます")
+                    log_text.append(
+                        f"{datetime.now().strftime('%H:%M:%S')} - INFO - 🗑️ 再生完了：フローティングウィンドウを閉じます"
+                    )
+                    try:
+                        floating_playback_window.close()
+                        floating_playback_window.deleteLater()
+                        floating_playback_window = None
+                    except Exception as e:
+                        logger.error(f"フローティングウィンドウ閉じる処理でエラー: {e}")
+
+            # シグナルをUIスレッドのスロットに接続
+            playback_signal.completed.connect(handle_playback_complete)
 
             rpa_manager.player.set_progress_callback(on_playback_progress)
             rpa_manager.player.set_complete_callback(on_playback_complete)
@@ -1428,6 +1692,33 @@ def main() -> int:
                 log_text.append(
                     f"{datetime.now().strftime('%H:%M:%S')} - INFO - 🎬 マウスとキーボード操作を自動実行中..."
                 )
+
+                # フローティング再生ウィンドウを作成・表示
+                global floating_playback_window
+                floating_playback_window = FloatingPlaybackWindow(recording_name)
+
+                # フローティングウィンドウのシグナル接続
+                def on_floating_stop_requested():
+                    stop_playback()
+
+                def on_floating_pause_requested():
+                    # 一時停止機能（今後実装）
+                    from PySide6.QtWidgets import QMessageBox
+
+                    QMessageBox.information(
+                        main_window,
+                        "一時停止",
+                        "一時停止機能は今後実装予定です。\n現在は停止ボタンをご利用ください。",
+                    )
+
+                floating_playback_window.stop_requested.connect(
+                    on_floating_stop_requested
+                )
+                floating_playback_window.pause_requested.connect(
+                    on_floating_pause_requested
+                )
+                floating_playback_window.show()
+
             else:
                 from PySide6.QtWidgets import QMessageBox
 
@@ -1445,6 +1736,8 @@ def main() -> int:
         def stop_playback():
             from datetime import datetime
 
+            global floating_playback_window
+
             # RPAプレーヤーで再生停止
             rpa_manager.player.stop_playback()
 
@@ -1457,6 +1750,27 @@ def main() -> int:
                 f"{datetime.now().strftime('%H:%M:%S')} - INFO - ⏹ RPA再生を停止しました"
             )
             status_bar.showMessage("⏹ RPA再生停止")
+
+            # フローティングウィンドウを閉じる（UIスレッドで実行）
+            def close_floating_window_on_stop():
+                global floating_playback_window
+
+                if floating_playback_window:
+                    logger.info("⏹ 再生停止：フローティングウィンドウを閉じます")
+                    log_text.append(
+                        f"{datetime.now().strftime('%H:%M:%S')} - INFO - ⏹ 再生停止：フローティングウィンドウを閉じます"
+                    )
+                    try:
+                        floating_playback_window.close()
+                        floating_playback_window.deleteLater()
+                        floating_playback_window = None
+                    except Exception as e:
+                        logger.error(
+                            f"停止時フローティングウィンドウ閉じる処理でエラー: {e}"
+                        )
+
+            # UIスレッドで実行
+            QTimer.singleShot(100, close_floating_window_on_stop)
 
         # 編集関数
         def edit_recording():
@@ -1903,7 +2217,59 @@ def main() -> int:
         )
 
         # アプリケーション終了時のクリーンアップ
-        app.aboutToQuit.connect(lambda: lifecycle_manager.shutdown())
+        def cleanup_on_exit():
+            """アプリケーション終了時のクリーンアップ"""
+            # グローバル変数の存在確認
+            try:
+                floating_window_ref = globals().get("floating_window", None)
+                floating_playback_window_ref = globals().get(
+                    "floating_playback_window", None
+                )
+            except:
+                floating_window_ref = None
+                floating_playback_window_ref = None
+
+            # フローティングウィンドウを強制的に閉じる
+            if floating_window_ref:
+                try:
+                    floating_window.close()
+                    floating_window.deleteLater()
+                    floating_window = None
+                except:
+                    pass
+
+            if floating_playback_window:
+                try:
+                    floating_playback_window.close()
+                    floating_playback_window.deleteLater()
+                    floating_playback_window = None
+                except:
+                    pass
+
+            # RPA停止
+            try:
+                if rpa_manager.recorder.is_recording:
+                    rpa_manager.recorder.stop_recording()
+                if rpa_manager.player.is_playing:
+                    rpa_manager.player.stop_playback()
+            except:
+                pass
+
+            # ライフサイクル管理終了
+            lifecycle_manager.shutdown()
+
+        app.aboutToQuit.connect(cleanup_on_exit)
+
+        # メインウィンドウのクローズイベントにもクリーンアップを追加
+        original_close_event = main_window.closeEvent
+
+        def enhanced_close_event(event):
+            cleanup_on_exit()
+            if original_close_event:
+                original_close_event(event)
+            event.accept()
+
+        main_window.closeEvent = enhanced_close_event
 
         # メインウィンドウ表示
         main_window.show()

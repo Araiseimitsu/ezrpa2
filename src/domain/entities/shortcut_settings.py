@@ -5,7 +5,7 @@
 """
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Set, Tuple
+from typing import List, Dict, Set, Tuple, Optional
 from enum import Enum
 
 
@@ -112,6 +112,9 @@ class ShortcutSettings:
     # カスタム除外キー
     custom_excluded_keys: List[KeyCombination] = field(default_factory=list)
     
+    # カスタムショートカットコマンド（遅延インポートで対応）
+    custom_shortcut_commands: List[Dict] = field(default_factory=list)
+    
     # RPA制御ホットキー
     recording_start_stop_key: KeyCombination = field(
         default_factory=lambda: KeyCombination({KeyModifier.CTRL, KeyModifier.SHIFT}, "r", "記録開始/停止")
@@ -171,6 +174,94 @@ class ShortcutSettings:
         
         return False, ""
     
+    def get_custom_shortcut_commands(self) -> List["CustomShortcutCommand"]:
+        """カスタムショートカットコマンドを取得（遅延インポート）"""
+        from .custom_shortcut_command import CustomShortcutCommand
+        return [CustomShortcutCommand.from_dict(cmd_data) for cmd_data in self.custom_shortcut_commands]
+    
+    def add_custom_shortcut_command(self, command: "CustomShortcutCommand") -> bool:
+        """カスタムショートカットコマンドを追加"""
+        # 重複チェック（同じキー組み合わせは登録不可）
+        for existing_cmd_data in self.custom_shortcut_commands:
+            existing_key_data = existing_cmd_data.get("key_combination", {})
+            existing_modifiers = set(existing_key_data.get("modifiers", []))
+            existing_key = existing_key_data.get("key", "")
+            
+            if (command.key_combination.modifiers == {KeyModifier(mod) for mod in existing_modifiers} and 
+                command.key_combination.key.lower() == existing_key.lower()):
+                return False
+        
+        # RPAの制御キーとの重複チェック
+        if (self.recording_start_stop_key.matches(command.key_combination.modifiers, command.key_combination.key) or
+            self.recording_pause_resume_key.matches(command.key_combination.modifiers, command.key_combination.key) or
+            self.emergency_stop_key.matches(command.key_combination.modifiers, command.key_combination.key)):
+            return False
+        
+        # 除外キーとの重複チェック
+        if self.should_exclude_key(command.key_combination.modifiers, command.key_combination.key):
+            return False
+        
+        self.custom_shortcut_commands.append(command.to_dict())
+        return True
+    
+    def remove_custom_shortcut_command(self, command_id: str) -> bool:
+        """カスタムショートカットコマンドを削除"""
+        for i, cmd_data in enumerate(self.custom_shortcut_commands):
+            if cmd_data.get("id") == command_id:
+                del self.custom_shortcut_commands[i]
+                return True
+        return False
+    
+    def update_custom_shortcut_command(self, command: "CustomShortcutCommand") -> bool:
+        """カスタムショートカットコマンドを更新"""
+        for i, cmd_data in enumerate(self.custom_shortcut_commands):
+            if cmd_data.get("id") == command.id:
+                self.custom_shortcut_commands[i] = command.to_dict()
+                return True
+        return False
+    
+    def get_custom_shortcut_command_by_key(self, modifiers: Set[KeyModifier], key: str) -> Optional["CustomShortcutCommand"]:
+        """キー組み合わせに対応するカスタムショートカットコマンドを取得"""
+        from .custom_shortcut_command import CustomShortcutCommand
+        
+        for cmd_data in self.custom_shortcut_commands:
+            key_combo_data = cmd_data.get("key_combination", {})
+            cmd_modifiers = {KeyModifier(mod) for mod in key_combo_data.get("modifiers", [])}
+            cmd_key = key_combo_data.get("key", "")
+            
+            if cmd_modifiers == modifiers and cmd_key.lower() == key.lower():
+                command = CustomShortcutCommand.from_dict(cmd_data)
+                if command.enabled:
+                    return command
+        
+        return None
+    
+    def has_key_conflict(self, modifiers: Set[KeyModifier], key: str, exclude_command_id: str = "") -> Tuple[bool, str]:
+        """キー組み合わせの競合をチェック"""
+        # RPAの制御キーとの競合チェック
+        if (self.recording_start_stop_key.matches(modifiers, key) or
+            self.recording_pause_resume_key.matches(modifiers, key) or
+            self.emergency_stop_key.matches(modifiers, key)):
+            return True, "RPA制御キーと競合しています"
+        
+        # 除外キーとの競合チェック
+        if self.should_exclude_key(modifiers, key):
+            return True, "システム除外キーと競合しています"
+        
+        # カスタムショートカットコマンドとの競合チェック
+        for cmd_data in self.custom_shortcut_commands:
+            if cmd_data.get("id") == exclude_command_id:
+                continue
+                
+            key_combo_data = cmd_data.get("key_combination", {})
+            cmd_modifiers = {KeyModifier(mod) for mod in key_combo_data.get("modifiers", [])}
+            cmd_key = key_combo_data.get("key", "")
+            
+            if cmd_modifiers == modifiers and cmd_key.lower() == key.lower():
+                return True, f"カスタムコマンド '{cmd_data.get('name', '不明')}' と競合しています"
+        
+        return False, ""
+    
     def add_custom_excluded_key(self, key_combination: KeyCombination) -> bool:
         """カスタム除外キーを追加"""
         # 重複チェック
@@ -204,6 +295,7 @@ class ShortcutSettings:
                 }
                 for key in self.custom_excluded_keys
             ],
+            "custom_shortcut_commands": self.custom_shortcut_commands,
             "recording_start_stop_key": {
                 "modifiers": [mod.value for mod in self.recording_start_stop_key.modifiers],
                 "key": self.recording_start_stop_key.key,
@@ -242,6 +334,9 @@ class ShortcutSettings:
                 key=key_data.get("key", ""),
                 description=key_data.get("description", "")
             ))
+        
+        # カスタムショートカットコマンドの復元
+        settings.custom_shortcut_commands = data.get("custom_shortcut_commands", [])
         
         # RPA制御キーの復元
         def restore_key_combination(key_data, default_key):

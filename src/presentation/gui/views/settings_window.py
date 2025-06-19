@@ -10,12 +10,15 @@ from PySide6.QtWidgets import (
     QGroupBox, QCheckBox, QLabel, QPushButton, QListWidget,
     QListWidgetItem, QMessageBox, QLineEdit, QFormLayout,
     QDialogButtonBox, QTextEdit, QSplitter, QFrame,
-    QKeySequenceEdit, QScrollArea, QFileDialog, QInputDialog
+    QKeySequenceEdit, QScrollArea, QFileDialog, QInputDialog,
+    QComboBox, QSpinBox, QTableWidget, QTableWidgetItem,
+    QHeaderView, QAbstractItemView, QToolButton
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont, QKeyEvent, QKeySequence
 
 from src.domain.entities.shortcut_settings import ShortcutSettings, KeyCombination, KeyModifier
+from src.domain.entities.custom_shortcut_command import CustomShortcutCommand, CommandType
 from src.presentation.gui.viewmodels.settings_viewmodel import SettingsViewModel
 
 
@@ -138,6 +141,10 @@ class SettingsWindow(QDialog):
         # ショートカットキータブ
         self.shortcuts_tab = self._create_shortcuts_tab()
         self.tab_widget.addTab(self.shortcuts_tab, "🔧 ショートカットキー")
+        
+        # カスタムショートカットタブ
+        self.custom_shortcuts_tab = self._create_custom_shortcuts_tab()
+        self.tab_widget.addTab(self.custom_shortcuts_tab, "🚀 カスタムショートカット")
         
         # RPA制御キータブ
         self.rpa_controls_tab = self._create_rpa_controls_tab()
@@ -294,6 +301,103 @@ class SettingsWindow(QDialog):
         widget.setLayout(layout)
         return widget
     
+    def _create_custom_shortcuts_tab(self) -> QWidget:
+        """カスタムショートカットタブ作成"""
+        widget = QWidget()
+        layout = QVBoxLayout()
+        
+        # コマンド一覧テーブル
+        commands_group = QGroupBox("カスタムショートカットコマンド")
+        commands_layout = QVBoxLayout()
+        
+        self.commands_table = QTableWidget()
+        self.commands_table.setColumnCount(5)
+        self.commands_table.setHorizontalHeaderLabels([
+            "名前", "キー組み合わせ", "コマンドタイプ", "コマンド", "状態"
+        ])
+        
+        # テーブルの設定
+        header = self.commands_table.horizontalHeader()
+        header.setStretchLastSection(False)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # 名前
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)  # キー組み合わせ
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)  # コマンドタイプ
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)           # コマンド
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)  # 状態
+        
+        self.commands_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.commands_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.commands_table.setAlternatingRowColors(True)
+        
+        # ボタン群
+        button_layout = QHBoxLayout()
+        
+        self.add_command_btn = QPushButton("➕ 新しいコマンド")
+        self.add_command_btn.clicked.connect(self._add_custom_command)
+        
+        self.edit_command_btn = QPushButton("✏️ 編集")
+        self.edit_command_btn.clicked.connect(self._edit_custom_command)
+        self.edit_command_btn.setEnabled(False)
+        
+        self.duplicate_command_btn = QPushButton("📋 複製")
+        self.duplicate_command_btn.clicked.connect(self._duplicate_custom_command)
+        self.duplicate_command_btn.setEnabled(False)
+        
+        self.remove_command_btn = QPushButton("🗑️ 削除")
+        self.remove_command_btn.clicked.connect(self._remove_custom_command)
+        self.remove_command_btn.setEnabled(False)
+        
+        self.test_command_btn = QPushButton("🧪 テスト実行")
+        self.test_command_btn.clicked.connect(self._test_custom_command)
+        self.test_command_btn.setEnabled(False)
+        
+        button_layout.addWidget(self.add_command_btn)
+        button_layout.addWidget(self.edit_command_btn)
+        button_layout.addWidget(self.duplicate_command_btn)
+        button_layout.addWidget(self.remove_command_btn)
+        button_layout.addStretch()
+        button_layout.addWidget(self.test_command_btn)
+        
+        # プリセットコマンド
+        preset_layout = QHBoxLayout()
+        preset_layout.addWidget(QLabel("プリセット:"))
+        
+        self.add_preset_btn = QPushButton("📦 プリセットを追加")
+        self.add_preset_btn.clicked.connect(self._add_preset_commands)
+        preset_layout.addWidget(self.add_preset_btn)
+        preset_layout.addStretch()
+        
+        commands_layout.addWidget(self.commands_table)
+        commands_layout.addLayout(button_layout)
+        commands_layout.addLayout(preset_layout)
+        commands_group.setLayout(commands_layout)
+        
+        # ヘルプセクション
+        help_group = QGroupBox("カスタムショートカットについて")
+        help_layout = QVBoxLayout()
+        
+        help_text = QTextEdit()
+        help_text.setReadOnly(True)
+        help_text.setMaximumHeight(120)
+        help_text.setPlainText(
+            "カスタムショートカットを使用して、キー組み合わせで様々なコマンドを実行できます。\n\n"
+            "• アプリケーション起動: 指定したプログラムを起動\n"
+            "• ファイル操作: ファイルやフォルダを開く\n"
+            "• システムコマンド: コマンドライン実行\n"
+            "• URL開く: ブラウザでWebページを開く\n"
+            "• テキスト入力: 定型文をクリップボード経由で入力\n\n"
+            "注意: システムキーやRPA制御キーと重複しないキー組み合わせを選択してください。"
+        )
+        
+        help_layout.addWidget(help_text)
+        help_group.setLayout(help_layout)
+        
+        layout.addWidget(commands_group)
+        layout.addWidget(help_group)
+        
+        widget.setLayout(layout)
+        return widget
+    
     def _create_advanced_tab(self) -> QWidget:
         """詳細設定タブ作成"""
         widget = QWidget()
@@ -364,6 +468,9 @@ class SettingsWindow(QDialog):
         # カスタムキー一覧
         self.custom_keys_list.itemSelectionChanged.connect(self._on_custom_key_selection_changed)
         
+        # カスタムコマンドテーブル
+        self.commands_table.itemSelectionChanged.connect(self._on_command_selection_changed)
+        
         # システムキー除外の階層制御
         self.exclude_system_keys_cb.toggled.connect(self._update_system_keys_enabled)
     
@@ -380,6 +487,9 @@ class SettingsWindow(QDialog):
         
         # カスタム除外キー
         self._refresh_custom_keys()
+        
+        # カスタムコマンド
+        self._refresh_commands_table()
         
         # RPA制御キー
         self._update_rpa_control_displays()
@@ -628,3 +738,482 @@ class SettingsWindow(QDialog):
     def _show_error(self, message: str):
         """エラー表示"""
         QMessageBox.critical(self, "エラー", message)
+    
+    # カスタムショートカットコマンド関連メソッド
+    def _refresh_commands_table(self):
+        """コマンドテーブルを更新"""
+        commands = self.viewmodel.get_settings().get_custom_shortcut_commands()
+        
+        self.commands_table.setRowCount(len(commands))
+        
+        for row, command in enumerate(commands):
+            # 名前
+            self.commands_table.setItem(row, 0, QTableWidgetItem(command.name))
+            
+            # キー組み合わせ
+            key_text = str(command.key_combination) if command.key_combination else "未設定"
+            self.commands_table.setItem(row, 1, QTableWidgetItem(key_text))
+            
+            # コマンドタイプ
+            type_text = {
+                CommandType.APPLICATION: "アプリケーション",
+                CommandType.FILE_OPERATION: "ファイル操作",
+                CommandType.SYSTEM_COMMAND: "システムコマンド",
+                CommandType.SCRIPT_EXECUTION: "スクリプト実行",
+                CommandType.URL_OPEN: "URL開く",
+                CommandType.TEXT_INPUT: "テキスト入力"
+            }.get(command.command_type, "不明")
+            self.commands_table.setItem(row, 2, QTableWidgetItem(type_text))
+            
+            # コマンド（短縮表示）
+            cmd_display = command.command
+            if len(cmd_display) > 50:
+                cmd_display = cmd_display[:47] + "..."
+            self.commands_table.setItem(row, 3, QTableWidgetItem(cmd_display))
+            
+            # 状態
+            status_text = "有効" if command.enabled else "無効"
+            status_item = QTableWidgetItem(status_text)
+            if command.enabled:
+                status_item.setBackground(Qt.GlobalColor.green)
+            else:
+                status_item.setBackground(Qt.GlobalColor.lightGray)
+            self.commands_table.setItem(row, 4, status_item)
+        
+        # テーブル選択状態の更新
+        self._on_command_selection_changed()
+    
+    def _on_command_selection_changed(self):
+        """コマンド選択状態変更"""
+        has_selection = self.commands_table.currentRow() >= 0
+        
+        self.edit_command_btn.setEnabled(has_selection)
+        self.duplicate_command_btn.setEnabled(has_selection)
+        self.remove_command_btn.setEnabled(has_selection)
+        self.test_command_btn.setEnabled(has_selection)
+    
+    def _add_custom_command(self):
+        """カスタムコマンド追加"""
+        dialog = CustomCommandEditDialog(self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            command = dialog.get_command()
+            settings = self.viewmodel.get_settings()
+            
+            if settings.add_custom_shortcut_command(command):
+                self._refresh_commands_table()
+                QMessageBox.information(self, "完了", "コマンドが追加されました。")
+            else:
+                QMessageBox.warning(self, "警告", "キー組み合わせが重複しているか、無効な設定です。")
+    
+    def _edit_custom_command(self):
+        """カスタムコマンド編集"""
+        row = self.commands_table.currentRow()
+        if row < 0:
+            return
+        
+        commands = self.viewmodel.get_settings().get_custom_shortcut_commands()
+        if row >= len(commands):
+            return
+        
+        command = commands[row]
+        dialog = CustomCommandEditDialog(command, self)
+        
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            updated_command = dialog.get_command()
+            settings = self.viewmodel.get_settings()
+            
+            if settings.update_custom_shortcut_command(updated_command):
+                self._refresh_commands_table()
+                QMessageBox.information(self, "完了", "コマンドが更新されました。")
+            else:
+                QMessageBox.warning(self, "警告", "更新に失敗しました。")
+    
+    def _duplicate_custom_command(self):
+        """カスタムコマンド複製"""
+        row = self.commands_table.currentRow()
+        if row < 0:
+            return
+        
+        commands = self.viewmodel.get_settings().get_custom_shortcut_commands()
+        if row >= len(commands):
+            return
+        
+        original_command = commands[row]
+        
+        # 複製したコマンドを作成
+        new_command = CustomShortcutCommand(
+            name=f"{original_command.name} (コピー)",
+            description=original_command.description,
+            enabled=original_command.enabled,
+            key_combination=KeyCombination(),  # キー組み合わせはクリア
+            command_type=original_command.command_type,
+            command=original_command.command,
+            parameters=original_command.parameters.copy(),
+            working_directory=original_command.working_directory,
+            run_as_admin=original_command.run_as_admin,
+            wait_for_completion=original_command.wait_for_completion,
+            timeout_seconds=original_command.timeout_seconds,
+            active_window_title_pattern=original_command.active_window_title_pattern,
+            active_process_name_pattern=original_command.active_process_name_pattern
+        )
+        
+        dialog = CustomCommandEditDialog(new_command, self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            command = dialog.get_command()
+            settings = self.viewmodel.get_settings()
+            
+            if settings.add_custom_shortcut_command(command):
+                self._refresh_commands_table()
+                QMessageBox.information(self, "完了", "コマンドが複製されました。")
+            else:
+                QMessageBox.warning(self, "警告", "キー組み合わせが重複しているか、無効な設定です。")
+    
+    def _remove_custom_command(self):
+        """カスタムコマンド削除"""
+        row = self.commands_table.currentRow()
+        if row < 0:
+            return
+        
+        commands = self.viewmodel.get_settings().get_custom_shortcut_commands()
+        if row >= len(commands):
+            return
+        
+        command = commands[row]
+        
+        reply = QMessageBox.question(
+            self, "削除確認",
+            f"コマンド '{command.name}' を削除しますか？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            settings = self.viewmodel.get_settings()
+            if settings.remove_custom_shortcut_command(command.id):
+                self._refresh_commands_table()
+                QMessageBox.information(self, "完了", "コマンドが削除されました。")
+            else:
+                QMessageBox.warning(self, "警告", "削除に失敗しました。")
+    
+    def _test_custom_command(self):
+        """カスタムコマンドテスト実行"""
+        row = self.commands_table.currentRow()
+        if row < 0:
+            return
+        
+        commands = self.viewmodel.get_settings().get_custom_shortcut_commands()
+        if row >= len(commands):
+            return
+        
+        command = commands[row]
+        
+        reply = QMessageBox.question(
+            self, "テスト実行",
+            f"コマンド '{command.name}' をテスト実行しますか？\n\n"
+            f"コマンド: {command.command}",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                if command.execute():
+                    QMessageBox.information(self, "テスト完了", "コマンドが正常に実行されました。")
+                else:
+                    QMessageBox.warning(self, "テスト失敗", "コマンドの実行に失敗しました。")
+            except Exception as e:
+                QMessageBox.critical(self, "テストエラー", f"実行中にエラーが発生しました：\n{str(e)}")
+    
+    def _add_preset_commands(self):
+        """プリセットコマンド追加"""
+        from src.domain.entities.custom_shortcut_command import create_preset_commands
+        
+        preset_commands = create_preset_commands()
+        settings = self.viewmodel.get_settings()
+        
+        added_count = 0
+        for command in preset_commands:
+            if settings.add_custom_shortcut_command(command):
+                added_count += 1
+        
+        if added_count > 0:
+            self._refresh_commands_table()
+            QMessageBox.information(self, "完了", f"{added_count}個のプリセットコマンドが追加されました。")
+        else:
+            QMessageBox.information(self, "情報", "プリセットコマンドはすでに追加されているか、キー組み合わせが競合しています。")
+
+
+class CustomCommandEditDialog(QDialog):
+    """カスタムコマンド編集ダイアログ"""
+    
+    def __init__(self, command: Optional[CustomShortcutCommand] = None, parent=None):
+        super().__init__(parent)
+        
+        self.setWindowTitle("カスタムコマンド編集")
+        self.setModal(True)
+        self.resize(600, 500)
+        
+        self.command = command or CustomShortcutCommand()
+        self._setup_ui()
+        self._load_command()
+    
+    def _setup_ui(self):
+        """UI構築"""
+        layout = QVBoxLayout()
+        
+        # タブウィジェット
+        self.tab_widget = QTabWidget()
+        
+        # 基本設定タブ
+        self.basic_tab = self._create_basic_tab()
+        self.tab_widget.addTab(self.basic_tab, "基本設定")
+        
+        # 詳細設定タブ
+        self.advanced_tab = self._create_advanced_tab()
+        self.tab_widget.addTab(self.advanced_tab, "詳細設定")
+        
+        layout.addWidget(self.tab_widget)
+        
+        # ボタン
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        button_box.accepted.connect(self._accept)
+        button_box.rejected.connect(self.reject)
+        
+        layout.addWidget(button_box)
+        self.setLayout(layout)
+    
+    def _create_basic_tab(self) -> QWidget:
+        """基本設定タブ作成"""
+        widget = QWidget()
+        layout = QFormLayout()
+        
+        # 名前
+        self.name_edit = QLineEdit()
+        self.name_edit.setPlaceholderText("コマンドの名前を入力")
+        layout.addRow("名前:", self.name_edit)
+        
+        # 説明
+        self.description_edit = QLineEdit()
+        self.description_edit.setPlaceholderText("コマンドの説明（オプション）")
+        layout.addRow("説明:", self.description_edit)
+        
+        # 有効/無効
+        self.enabled_cb = QCheckBox("このコマンドを有効にする")
+        layout.addRow("", self.enabled_cb)
+        
+        # キー組み合わせ
+        self.key_capture = KeyCaptureWidget()
+        layout.addRow("キー組み合わせ:", self.key_capture)
+        
+        # コマンドタイプ
+        self.command_type_combo = QComboBox()
+        self.command_type_combo.addItems([
+            "アプリケーション",
+            "ファイル操作", 
+            "システムコマンド",
+            "スクリプト実行",
+            "URL開く",
+            "テキスト入力"
+        ])
+        self.command_type_combo.currentTextChanged.connect(self._on_command_type_changed)
+        layout.addRow("コマンドタイプ:", self.command_type_combo)
+        
+        # コマンド
+        command_layout = QHBoxLayout()
+        self.command_edit = QLineEdit()
+        self.command_edit.setPlaceholderText("実行するコマンドまたはパス")
+        
+        self.browse_btn = QPushButton("参照")
+        self.browse_btn.clicked.connect(self._browse_command)
+        
+        command_layout.addWidget(self.command_edit)
+        command_layout.addWidget(self.browse_btn)
+        layout.addRow("コマンド:", command_layout)
+        
+        widget.setLayout(layout)
+        return widget
+    
+    def _create_advanced_tab(self) -> QWidget:
+        """詳細設定タブ作成"""
+        widget = QWidget()
+        layout = QFormLayout()
+        
+        # 作業ディレクトリ
+        work_dir_layout = QHBoxLayout()
+        self.working_directory_edit = QLineEdit()
+        self.working_directory_edit.setPlaceholderText("作業ディレクトリ（オプション）")
+        
+        self.browse_workdir_btn = QPushButton("参照")
+        self.browse_workdir_btn.clicked.connect(self._browse_working_directory)
+        
+        work_dir_layout.addWidget(self.working_directory_edit)
+        work_dir_layout.addWidget(self.browse_workdir_btn)
+        layout.addRow("作業ディレクトリ:", work_dir_layout)
+        
+        # 実行設定
+        self.wait_for_completion_cb = QCheckBox("完了まで待機")
+        layout.addRow("実行設定:", self.wait_for_completion_cb)
+        
+        # タイムアウト
+        self.timeout_spin = QSpinBox()
+        self.timeout_spin.setMinimum(1)
+        self.timeout_spin.setMaximum(3600)
+        self.timeout_spin.setValue(30)
+        self.timeout_spin.setSuffix(" 秒")
+        layout.addRow("タイムアウト:", self.timeout_spin)
+        
+        # 条件設定
+        self.active_window_pattern_edit = QLineEdit()
+        self.active_window_pattern_edit.setPlaceholderText("特定のウィンドウタイトルパターン（オプション）")
+        layout.addRow("ウィンドウ条件:", self.active_window_pattern_edit)
+        
+        self.active_process_pattern_edit = QLineEdit()
+        self.active_process_pattern_edit.setPlaceholderText("特定のプロセス名パターン（オプション）")
+        layout.addRow("プロセス条件:", self.active_process_pattern_edit)
+        
+        widget.setLayout(layout)
+        return widget
+    
+    def _load_command(self):
+        """コマンド情報を読み込み"""
+        self.name_edit.setText(self.command.name)
+        self.description_edit.setText(self.command.description)
+        self.enabled_cb.setChecked(self.command.enabled)
+        
+        # キー組み合わせ
+        if self.command.key_combination and self.command.key_combination.key:
+            modifiers = []
+            for mod in self.command.key_combination.modifiers:
+                if mod == KeyModifier.CTRL:
+                    modifiers.append("Ctrl")
+                elif mod == KeyModifier.ALT:
+                    modifiers.append("Alt")
+                elif mod == KeyModifier.SHIFT:
+                    modifiers.append("Shift")
+                elif mod == KeyModifier.WIN:
+                    modifiers.append("Win")
+            
+            display_text = "+".join(modifiers + [self.command.key_combination.key.upper()])
+            self.key_capture.label.setText(display_text)
+            self.key_capture.label.setStyleSheet("color: #000; font-weight: bold;")
+        
+        # コマンドタイプ
+        type_index = {
+            CommandType.APPLICATION: 0,
+            CommandType.FILE_OPERATION: 1,
+            CommandType.SYSTEM_COMMAND: 2,
+            CommandType.SCRIPT_EXECUTION: 3,
+            CommandType.URL_OPEN: 4,
+            CommandType.TEXT_INPUT: 5
+        }.get(self.command.command_type, 0)
+        self.command_type_combo.setCurrentIndex(type_index)
+        
+        self.command_edit.setText(self.command.command)
+        self.working_directory_edit.setText(self.command.working_directory)
+        self.wait_for_completion_cb.setChecked(self.command.wait_for_completion)
+        self.timeout_spin.setValue(self.command.timeout_seconds)
+        self.active_window_pattern_edit.setText(self.command.active_window_title_pattern)
+        self.active_process_pattern_edit.setText(self.command.active_process_name_pattern)
+    
+    def _on_command_type_changed(self, text: str):
+        """コマンドタイプ変更時"""
+        if text == "ファイル操作":
+            self.command_edit.setPlaceholderText("開くファイルまたはフォルダのパス")
+        elif text == "URL開く":
+            self.command_edit.setPlaceholderText("https://example.com")
+        elif text == "テキスト入力":
+            self.command_edit.setPlaceholderText("入力するテキスト")
+        else:
+            self.command_edit.setPlaceholderText("実行するコマンドまたはパス")
+    
+    def _browse_command(self):
+        """コマンド参照"""
+        command_type_text = self.command_type_combo.currentText()
+        
+        if command_type_text == "アプリケーション":
+            file_path, _ = QFileDialog.getOpenFileName(
+                self, "実行ファイルを選択", "", "実行ファイル (*.exe);;すべてのファイル (*)")
+        elif command_type_text == "ファイル操作":
+            file_path = QFileDialog.getExistingDirectory(self, "フォルダを選択")
+            if not file_path:
+                file_path, _ = QFileDialog.getOpenFileName(self, "ファイルを選択", "", "すべてのファイル (*)")
+        elif command_type_text == "スクリプト実行":
+            file_path, _ = QFileDialog.getOpenFileName(
+                self, "スクリプトファイルを選択", "", 
+                "スクリプトファイル (*.py *.bat *.cmd *.ps1);;すべてのファイル (*)")
+        else:
+            return
+        
+        if file_path:
+            self.command_edit.setText(file_path)
+    
+    def _browse_working_directory(self):
+        """作業ディレクトリ参照"""
+        directory = QFileDialog.getExistingDirectory(self, "作業ディレクトリを選択")
+        if directory:
+            self.working_directory_edit.setText(directory)
+    
+    def _accept(self):
+        """OK時の処理"""
+        # 入力検証
+        if not self.name_edit.text().strip():
+            QMessageBox.warning(self, "入力エラー", "名前を入力してください。")
+            return
+        
+        if not self.command_edit.text().strip():
+            QMessageBox.warning(self, "入力エラー", "コマンドを入力してください。")
+            return
+        
+        if not hasattr(self.key_capture, 'captured_key') or not self.key_capture.captured_key:
+            QMessageBox.warning(self, "入力エラー", "キー組み合わせを設定してください。")
+            return
+        
+        self.accept()
+    
+    def get_command(self) -> CustomShortcutCommand:
+        """設定されたコマンドを取得"""
+        # キー組み合わせの変換
+        modifiers = set()
+        for mod_text in getattr(self.key_capture, 'captured_keys', []):
+            if mod_text == "Ctrl":
+                modifiers.add(KeyModifier.CTRL)
+            elif mod_text == "Alt":
+                modifiers.add(KeyModifier.ALT)
+            elif mod_text == "Shift":
+                modifiers.add(KeyModifier.SHIFT)
+            elif mod_text == "Win":
+                modifiers.add(KeyModifier.WIN)
+        
+        key_combination = KeyCombination(
+            modifiers=modifiers,
+            key=getattr(self.key_capture, 'captured_key', ''),
+            description=self.name_edit.text()
+        )
+        
+        # コマンドタイプの変換
+        command_type_map = {
+            "アプリケーション": CommandType.APPLICATION,
+            "ファイル操作": CommandType.FILE_OPERATION,
+            "システムコマンド": CommandType.SYSTEM_COMMAND,
+            "スクリプト実行": CommandType.SCRIPT_EXECUTION,
+            "URL開く": CommandType.URL_OPEN,
+            "テキスト入力": CommandType.TEXT_INPUT
+        }
+        command_type = command_type_map.get(self.command_type_combo.currentText(), CommandType.APPLICATION)
+        
+        # コマンドを更新
+        self.command.name = self.name_edit.text()
+        self.command.description = self.description_edit.text()
+        self.command.enabled = self.enabled_cb.isChecked()
+        self.command.key_combination = key_combination
+        self.command.command_type = command_type
+        self.command.command = self.command_edit.text()
+        self.command.working_directory = self.working_directory_edit.text()
+        self.command.wait_for_completion = self.wait_for_completion_cb.isChecked()
+        self.command.timeout_seconds = self.timeout_spin.value()
+        self.command.active_window_title_pattern = self.active_window_pattern_edit.text()
+        self.command.active_process_name_pattern = self.active_process_pattern_edit.text()
+        
+        return self.command

@@ -279,6 +279,14 @@ class MainWindow(QMainWindow):
         self._setup_statusbar()
         self._connect_viewmodel()
         
+        # メニューバーを強制的に表示
+        self.menuBar().setVisible(True)
+        self.menuBar().show()
+        
+        # メニューが正しく表示されているかをタイマーで確認
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(1000, self._check_menu_visibility)
+        
         # 初期化
         import asyncio
         asyncio.create_task(self._initialize_async())
@@ -373,60 +381,134 @@ class MainWindow(QMainWindow):
     
     def _setup_menus(self):
         """メニューバーの設定"""
+        print("DEBUG: メニュー設定を開始...")
         menubar = self.menuBar()
+        print(f"DEBUG: メニューバー取得: {menubar}")
+        
+        # 共通アクションを先に作成（重複を避ける）
+        self._create_actions()
+        print("DEBUG: アクション作成完了")
         
         # ファイルメニュー
         file_menu = menubar.addMenu("ファイル(&F)")
-        
-        new_action = QAction("新しい記録(&N)", self)
-        new_action.setShortcut("Ctrl+N")
-        new_action.triggered.connect(self._on_new_recording)
-        file_menu.addAction(new_action)
-        
+        file_menu.addAction(self._new_recording_action)
         file_menu.addSeparator()
-        
-        exit_action = QAction("終了(&X)", self)
-        exit_action.setShortcut("Ctrl+Q")
-        exit_action.triggered.connect(self._on_exit)
-        file_menu.addAction(exit_action)
+        file_menu.addAction(self._exit_action)
+        print(f"DEBUG: ファイルメニュー作成: {file_menu.title()}")
         
         # 表示メニュー
         view_menu = menubar.addMenu("表示(&V)")
+        view_menu.addAction(self._refresh_action)
+        print(f"DEBUG: 表示メニュー作成: {view_menu.title()}")
         
-        refresh_action = QAction("更新(&R)", self)
-        refresh_action.setShortcut("F5")
-        refresh_action.triggered.connect(self._on_refresh)
-        view_menu.addAction(refresh_action)
+        # ツールメニュー
+        tools_menu = menubar.addMenu("ツール(&T)")
+        print(f"DEBUG: ツールメニュー作成前: {tools_menu}")
+        
+        if hasattr(self, '_shortcut_settings_action') and self._shortcut_settings_action:
+            tools_menu.addAction(self._shortcut_settings_action)
+            print(f"DEBUG: ショートカット設定アクション追加: {self._shortcut_settings_action.text()}")
+        else:
+            print("ERROR: ショートカット設定アクションが存在しません")
+        
+        tools_menu.addSeparator()
+        
+        if hasattr(self, '_preferences_action') and self._preferences_action:
+            tools_menu.addAction(self._preferences_action)
+            print(f"DEBUG: 環境設定アクション追加: {self._preferences_action.text()}")
+        else:
+            print("ERROR: 環境設定アクションが存在しません")
+        
+        print(f"DEBUG: ツールメニュー作成完了。タイトル: {tools_menu.title()}, アクション数: {len(tools_menu.actions())}")
         
         # ヘルプメニュー
         help_menu = menubar.addMenu("ヘルプ(&H)")
+        help_menu.addAction(self._about_action)
+        print(f"DEBUG: ヘルプメニュー作成: {help_menu.title()}")
         
-        about_action = QAction("バージョン情報(&A)", self)
-        about_action.triggered.connect(self._on_about)
-        help_menu.addAction(about_action)
+        # 全メニューの確認
+        all_menus = menubar.actions()
+        print(f"DEBUG: 作成されたメニュー一覧: {[action.text() for action in all_menus]}")
+        
+        # メニューバーの更新を強制
+        menubar.update()
+        print("DEBUG: メニューバー更新完了")
+    
+    def _create_actions(self):
+        """共通アクションの作成"""
+        print("DEBUG: アクション作成開始...")
+        
+        try:
+            # ファイルアクション
+            self._new_recording_action = QAction("新しい記録(&N)", self)
+            self._new_recording_action.setShortcut("Ctrl+N")
+            self._new_recording_action.triggered.connect(self._on_new_recording)
+            print("DEBUG: 新しい記録アクション作成完了")
+            
+            self._exit_action = QAction("終了(&X)", self)
+            self._exit_action.setShortcut("Ctrl+Q")
+            self._exit_action.triggered.connect(self._on_exit)
+            print("DEBUG: 終了アクション作成完了")
+            
+            # 表示アクション
+            self._refresh_action = QAction("更新(&R)", self)
+            self._refresh_action.setShortcut("F5")
+            self._refresh_action.triggered.connect(self._on_refresh)
+            print("DEBUG: 更新アクション作成完了")
+            
+            # ツールアクション
+            print("DEBUG: ツールアクション作成開始...")
+            self._shortcut_settings_action = QAction("ショートカット設定(&S)", self)
+            print(f"DEBUG: ショートカット設定アクション作成: {self._shortcut_settings_action}")
+            self._shortcut_settings_action.setShortcut("Ctrl+,")
+            self._shortcut_settings_action.triggered.connect(self._on_open_settings)
+            print(f"DEBUG: ショートカット設定アクション完了: テキスト='{self._shortcut_settings_action.text()}', 有効={self._shortcut_settings_action.isEnabled()}")
+            
+            self._preferences_action = QAction("環境設定(&P)", self)
+            print(f"DEBUG: 環境設定アクション作成: {self._preferences_action}")
+            self._preferences_action.triggered.connect(self._on_open_preferences)
+            print(f"DEBUG: 環境設定アクション完了: テキスト='{self._preferences_action.text()}', 有効={self._preferences_action.isEnabled()}")
+            
+            # 操作アクション
+            self._quick_record_action = QAction("クイック記録", self)
+            self._quick_record_action.triggered.connect(self._on_quick_record)
+            print("DEBUG: クイック記録アクション作成完了")
+            
+            self._stop_all_action = QAction("全停止", self)
+            self._stop_all_action.triggered.connect(self._on_stop_all)
+            print("DEBUG: 全停止アクション作成完了")
+            
+            # ヘルプアクション
+            self._about_action = QAction("バージョン情報(&A)", self)
+            self._about_action.triggered.connect(self._on_about)
+            print("DEBUG: バージョン情報アクション作成完了")
+            
+            print("DEBUG: 全アクション作成完了")
+            
+        except Exception as e:
+            print(f"ERROR: アクション作成エラー: {e}")
+            import traceback
+            traceback.print_exc()
     
     def _setup_toolbar(self):
         """ツールバーの設定"""
         toolbar = self.addToolBar("メイン")
         
-        # クイック記録
-        quick_record_action = QAction("クイック記録", self)
-        quick_record_action.triggered.connect(self._on_quick_record)
-        toolbar.addAction(quick_record_action)
-        
+        # 共通アクションを使用（アイコン付きバージョンを作成）
+        toolbar.addAction(self._quick_record_action)
         toolbar.addSeparator()
         
-        # 停止
-        stop_action = QAction("全停止", self)
-        stop_action.triggered.connect(self._on_stop_all)
-        toolbar.addAction(stop_action)
-        
+        toolbar.addAction(self._stop_all_action)
         toolbar.addSeparator()
         
-        # 更新
-        refresh_action = QAction("更新", self)
-        refresh_action.triggered.connect(self._on_refresh)
-        toolbar.addAction(refresh_action)
+        toolbar.addAction(self._refresh_action)
+        toolbar.addSeparator()
+        
+        # ショートカット設定（アイコン付き）
+        toolbar_shortcut_action = QAction("⚙️ ショートカット設定", self)
+        toolbar_shortcut_action.setShortcut("Ctrl+,")
+        toolbar_shortcut_action.triggered.connect(self._on_open_settings)
+        toolbar.addAction(toolbar_shortcut_action)
     
     def _setup_statusbar(self):
         """ステータスバーの設定"""
@@ -564,6 +646,88 @@ class MainWindow(QMainWindow):
         if command and command.can_execute():
             import asyncio
             asyncio.create_task(command.execute_async())
+    
+    def _on_open_settings(self):
+        """ショートカット設定を開く"""
+        try:
+            from .settings_window import SettingsWindow
+            
+            # 設定ダイアログを作成
+            settings_dialog = SettingsWindow(parent=self)
+            
+            # 設定適用時のハンドラーを接続
+            settings_dialog.settings_applied.connect(self._on_settings_applied)
+            
+            # ダイアログを表示
+            settings_dialog.exec()
+            
+        except Exception as e:
+            self._show_error_message("設定画面エラー", f"設定画面の表示に失敗しました:\n{str(e)}")
+    
+    def _on_open_preferences(self):
+        """環境設定を開く"""
+        # 将来的に詳細な環境設定画面を実装
+        self._on_open_settings()  # 現在はショートカット設定と同じ
+    
+    def _on_settings_applied(self, settings):
+        """設定適用時の処理"""
+        try:
+            # ViewModelに設定を通知
+            command = self._viewmodel.get_command('apply_settings')
+            if command and command.can_execute():
+                command.execute(settings)
+            
+            # ユーザーに通知
+            self._show_info_message("設定適用", "設定が正常に適用されました。")
+            
+        except Exception as e:
+            self._show_warning_message("設定適用警告", f"設定の適用中にエラーが発生しました:\n{str(e)}")
+    
+    def _show_error_message(self, title: str, message: str):
+        """エラーメッセージを表示"""
+        from PySide6.QtWidgets import QMessageBox
+        QMessageBox.critical(self, title, message)
+    
+    def _show_warning_message(self, title: str, message: str):
+        """警告メッセージを表示"""
+        from PySide6.QtWidgets import QMessageBox
+        QMessageBox.warning(self, title, message)
+    
+    def _show_info_message(self, title: str, message: str):
+        """情報メッセージを表示"""
+        from PySide6.QtWidgets import QMessageBox
+        QMessageBox.information(self, title, message)
+    
+    def _check_menu_visibility(self):
+        """メニューの可視性を確認"""
+        menubar = self.menuBar()
+        print(f"DEBUG: メニューバーの状態確認:")
+        print(f"  - 可視性: {menubar.isVisible()}")
+        print(f"  - 有効性: {menubar.isEnabled()}")
+        print(f"  - サイズ: {menubar.size()}")
+        print(f"  - 位置: {menubar.pos()}")
+        print(f"  - アクション数: {len(menubar.actions())}")
+        
+        for i, action in enumerate(menubar.actions()):
+            print(f"  - メニュー{i}: '{action.text()}' (可視={action.isVisible()}, 有効={action.isEnabled()})")
+            
+            if action.menu():
+                submenu = action.menu()
+                print(f"    サブメニューアクション数: {len(submenu.actions())}")
+                for j, subaction in enumerate(submenu.actions()):
+                    if not subaction.isSeparator():
+                        print(f"      - アクション{j}: '{subaction.text()}' (可視={subaction.isVisible()}, 有効={subaction.isEnabled()})")
+        
+        # ツールメニューを特別に確認
+        for action in menubar.actions():
+            if "ツール" in action.text():
+                tools_menu = action.menu()
+                if tools_menu:
+                    print(f"DEBUG: ツールメニュー詳細確認:")
+                    print(f"  - タイトル: {tools_menu.title()}")
+                    print(f"  - 可視性: {tools_menu.isVisible()}")
+                    print(f"  - 有効性: {tools_menu.isEnabled()}")
+                    break
     
     async def _initialize_async(self):
         """非同期初期化"""
