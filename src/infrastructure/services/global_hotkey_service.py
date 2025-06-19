@@ -173,11 +173,13 @@ class GlobalHotkeyService:
             if self.settings:
                 self._register_hotkeys_from_settings()
             
-            # キーボード監視開始
+            self.logger.info("グローバルホットキー監視ループを開始しました")
+            
+            # 監視ループ - keyboard ライブラリはイベントドリブンなので、単純に待機
             while not self._stop_event.is_set():
                 try:
-                    keyboard.wait()  # キーイベント待機
-                    if self._stop_event.is_set():
+                    # 0.1秒間隔でストップイベントをチェック
+                    if self._stop_event.wait(timeout=0.1):
                         break
                         
                 except Exception as e:
@@ -187,6 +189,7 @@ class GlobalHotkeyService:
         except Exception as e:
             self.logger.error(f"監視ループエラー: {e}")
         finally:
+            self.logger.info("グローバルホットキー監視ループを終了しました")
             self._unregister_all_hotkeys()
     
     def _register_hotkeys_from_settings(self):

@@ -378,6 +378,16 @@ def create_preset_commands() -> List[CustomShortcutCommand]:
     )
     presets.append(notepad_cmd)
     
+    # デスクトップを表示（Windowsキーテスト）
+    desktop_cmd = CustomShortcutCommand(
+        name="デスクトップを表示",
+        description="Win+Dと同じ効果でデスクトップを表示",
+        key_combination=KeyCombination({KeyModifier.WIN}, "d", "デスクトップ表示"),
+        command_type=CommandType.SYSTEM_COMMAND,
+        command="explorer shell:::{3080F90D-D7AD-11D9-BD98-0000947B0257}"
+    )
+    presets.append(desktop_cmd)
+    
     # エクスプローラーでデスクトップを開く
     desktop_cmd = CustomShortcutCommand(
         name="デスクトップフォルダを開く",

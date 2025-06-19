@@ -24,6 +24,7 @@ from src.rpa_core import RPAManager, RPAAction
 # ショートカット設定のインポート
 from src.domain.entities.shortcut_settings import ShortcutSettings
 from src.presentation.gui.views.settings_window import SettingsWindow
+from src.infrastructure.services.global_hotkey_service import create_global_hotkey_service
 
 # Windows環境でのパス設定
 if sys.platform == "win32":
@@ -645,6 +646,12 @@ def main() -> int:
         floating_window = None  # フローティングウィンドウの参照
         floating_playback_window = None  # フローティング再生ウィンドウの参照
 
+        # GlobalHotkeyService初期化
+        global_hotkey_service = create_global_hotkey_service(event_bus)
+        
+        # ショートカット設定をサービスに設定
+        global_hotkey_service.update_settings(shortcut_settings)
+
         # ショートカット設定更新関数
         def update_shortcut_settings(new_settings: ShortcutSettings):
             """ショートカット設定更新"""
@@ -653,6 +660,9 @@ def main() -> int:
             try:
                 # RPAManagerの設定を更新
                 rpa_manager.update_shortcut_settings(new_settings)
+                
+                # GlobalHotkeyServiceの設定を更新
+                global_hotkey_service.update_settings(new_settings)
 
                 # 設定ファイルに保存
                 config["shortcuts"] = new_settings.to_dict()
@@ -660,15 +670,17 @@ def main() -> int:
                     json.dump(config, f, indent=2, ensure_ascii=False)
 
                 logger.info("⚙ ショートカット設定が更新されました")
-                log_text.append(
-                    f"{datetime.now().strftime('%H:%M:%S')} - INFO - ⚙ ショートカット設定が更新されました"
-                )
+                if 'log_text' in locals() or 'log_text' in globals():
+                    log_text.append(
+                        f"{datetime.now().strftime('%H:%M:%S')} - INFO - ⚙ ショートカット設定が更新されました"
+                    )
 
             except Exception as e:
                 logger.error(f"ショートカット設定の更新に失敗しました: {e}")
-                log_text.append(
-                    f"{datetime.now().strftime('%H:%M:%S')} - ERROR - ショートカット設定の更新に失敗しました: {e}"
-                )
+                if 'log_text' in locals() or 'log_text' in globals():
+                    log_text.append(
+                        f"{datetime.now().strftime('%H:%M:%S')} - ERROR - ショートカット設定の更新に失敗しました: {e}"
+                    )
 
         # RPA制御コールバック設定
         def handle_rpa_control(action: str):
@@ -2071,6 +2083,20 @@ def main() -> int:
 2025-06-18 23:15:50 - INFO - メインウィンドウを表示します
 """
         log_text.setPlainText(initial_logs)
+        
+        # グローバルホットキーサービス開始
+        from datetime import datetime
+        hotkey_start_result = global_hotkey_service.start()
+        if hotkey_start_result.is_success():
+            logger.info("🎯 グローバルホットキーサービスが開始されました")
+            log_text.append(
+                f"{datetime.now().strftime('%H:%M:%S')} - INFO - 🎯 グローバルホットキーサービスが開始されました"
+            )
+        else:
+            logger.warning(f"⚠️ グローバルホットキーサービスの開始に失敗: {hotkey_start_result.error}")
+            log_text.append(
+                f"{datetime.now().strftime('%H:%M:%S')} - WARNING - ⚠️ グローバルホットキーサービスの開始に失敗: {hotkey_start_result.error}"
+            )
 
         log_controls_layout = QHBoxLayout()
 
@@ -2271,6 +2297,13 @@ def main() -> int:
                     rpa_manager.recorder.stop_recording()
                 if rpa_manager.player.is_playing:
                     rpa_manager.player.stop_playback()
+            except:
+                pass
+
+            # グローバルホットキーサービス停止
+            try:
+                global_hotkey_service.stop()
+                logger.info("🎯 グローバルホットキーサービスを停止しました")
             except:
                 pass
 
