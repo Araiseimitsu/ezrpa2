@@ -19,7 +19,7 @@ except ImportError:
 from src.domain.entities.shortcut_settings import ShortcutSettings, KeyModifier
 from src.domain.entities.custom_shortcut_command import CustomShortcutCommand
 from src.core.event_bus import EventBus
-from src.core.result import Result
+from src.core.result import Result, ResultOf, Ok, Err
 
 
 @dataclass
@@ -55,14 +55,14 @@ class GlobalHotkeyService:
         if not self.keyboard_available:
             self.logger.warning("keyboard ライブラリが利用できません。グローバルホットキー機能は無効です。")
     
-    def start(self) -> Result[None]:
+    def start(self) -> ResultOf(None, str):
         """サービス開始"""
         try:
             if self.is_running:
-                return Result.success(None)
+                return Ok(None)
             
             if not self.keyboard_available:
-                return Result.failure("keyboard ライブラリが利用できません")
+                return Err("keyboard ライブラリが利用できません")
             
             self.is_running = True
             self._stop_event.clear()
@@ -80,17 +80,17 @@ class GlobalHotkeyService:
             # イベント通知
             self.event_bus.emit("hotkey_service_started", {})
             
-            return Result.success(None)
+            return Ok(None)
             
         except Exception as e:
             self.logger.error(f"グローバルホットキーサービス開始エラー: {e}")
-            return Result.failure(f"サービス開始エラー: {e}")
+            return Err(f"サービス開始エラー: {e}")
     
-    def stop(self) -> Result[None]:
+    def stop(self) -> ResultOf(None, str):
         """サービス停止"""
         try:
             if not self.is_running:
-                return Result.success(None)
+                return Ok(None)
             
             self.is_running = False
             self._stop_event.set()
@@ -107,13 +107,13 @@ class GlobalHotkeyService:
             # イベント通知
             self.event_bus.emit("hotkey_service_stopped", {})
             
-            return Result.success(None)
+            return Ok(None)
             
         except Exception as e:
             self.logger.error(f"グローバルホットキーサービス停止エラー: {e}")
-            return Result.failure(f"サービス停止エラー: {e}")
+            return Err(f"サービス停止エラー: {e}")
     
-    def update_settings(self, settings: ShortcutSettings) -> Result[None]:
+    def update_settings(self, settings: ShortcutSettings) -> ResultOf(None, str):
         """設定更新"""
         try:
             self.settings = settings
@@ -126,17 +126,17 @@ class GlobalHotkeyService:
                 self._register_hotkeys_from_settings()
             
             self.logger.debug("ホットキー設定を更新しました")
-            return Result.success(None)
+            return Ok(None)
             
         except Exception as e:
             self.logger.error(f"設定更新エラー: {e}")
-            return Result.failure(f"設定更新エラー: {e}")
+            return Err(f"設定更新エラー: {e}")
     
-    def enable(self) -> Result[None]:
+    def enable(self) -> ResultOf(None, str):
         """ホットキー監視を有効化"""
         try:
             if self.is_enabled:
-                return Result.success(None)
+                return Ok(None)
             
             self.is_enabled = True
             
@@ -144,27 +144,27 @@ class GlobalHotkeyService:
                 self._register_hotkeys_from_settings()
             
             self.logger.info("ホットキー監視を有効化しました")
-            return Result.success(None)
+            return Ok(None)
             
         except Exception as e:
             self.logger.error(f"ホットキー有効化エラー: {e}")
-            return Result.failure(f"有効化エラー: {e}")
+            return Err(f"有効化エラー: {e}")
     
-    def disable(self) -> Result[None]:
+    def disable(self) -> ResultOf(None, str):
         """ホットキー監視を無効化"""
         try:
             if not self.is_enabled:
-                return Result.success(None)
+                return Ok(None)
             
             self.is_enabled = False
             self._unregister_all_hotkeys()
             
             self.logger.info("ホットキー監視を無効化しました")
-            return Result.success(None)
+            return Ok(None)
             
         except Exception as e:
             self.logger.error(f"ホットキー無効化エラー: {e}")
-            return Result.failure(f"無効化エラー: {e}")
+            return Err(f"無効化エラー: {e}")
     
     def _monitor_loop(self):
         """監視ループ"""
@@ -367,19 +367,19 @@ class GlobalHotkeyService:
             ]
         }
     
-    def execute_command_by_id(self, command_id: str) -> Result[None]:
+    def execute_command_by_id(self, command_id: str) -> ResultOf(None, str):
         """IDでコマンドを手動実行"""
         try:
             hotkey_info = self.hotkeys.get(command_id)
             if hotkey_info:
                 self._execute_command(hotkey_info.command)
-                return Result.success(None)
+                return Ok(None)
             else:
-                return Result.failure(f"コマンドが見つかりません: {command_id}")
+                return Err(f"コマンドが見つかりません: {command_id}")
                 
         except Exception as e:
             self.logger.error(f"手動コマンド実行エラー: {e}")
-            return Result.failure(f"実行エラー: {e}")
+            return Err(f"実行エラー: {e}")
 
 
 # Windows 専用実装（オプション）

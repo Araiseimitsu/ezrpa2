@@ -40,6 +40,16 @@ try:
 except ImportError:
     HAS_PYNPUT = False
 
+# PyAutoGUI imports (for playback)
+try:
+    import pyautogui
+    # セーフティ機能を無効化（自動化用）
+    pyautogui.PAUSE = 0
+    pyautogui.FAILSAFE = False
+    HAS_PYAUTOGUI = True
+except ImportError:
+    HAS_PYAUTOGUI = False
+
 
 @dataclass
 class RPAAction:
@@ -349,8 +359,13 @@ class RPAPlayer:
     def _play_actions(self):
         """アクション再生メインループ"""
         try:
-            mouse_controller = mouse.Controller()
-            keyboard_controller = keyboard.Controller()
+            # PyAutoGUIが利用できない場合のフォールバック
+            mouse_controller = None
+            keyboard_controller = None
+            
+            if not HAS_PYAUTOGUI and HAS_PYNPUT:
+                mouse_controller = mouse.Controller()
+                keyboard_controller = keyboard.Controller()
 
             last_timestamp = 0
 
@@ -370,7 +385,7 @@ class RPAPlayer:
                 if delay > 0:
                     time.sleep(delay)
 
-                # アクション実行
+                # アクション実行（PyAutoGUIを優先）
                 self._execute_action(action, mouse_controller, keyboard_controller)
 
                 last_timestamp = action.timestamp
@@ -392,8 +407,121 @@ class RPAPlayer:
         finally:
             self.is_playing = False
 
-    def _execute_action(self, action: RPAAction, mouse_controller, keyboard_controller):
-        """個別アクション実行"""
+    def _execute_action(self, action: RPAAction, mouse_controller=None, keyboard_controller=None):
+        """個別アクション実行（PyAutoGUI版）"""
+        try:
+            if not HAS_PYAUTOGUI:
+                # フォールバック：pynputを使用
+                return self._execute_action_pynput(action, mouse_controller, keyboard_controller)
+            
+            if action.action_type == "mouse_move":
+                x, y = action.data["x"], action.data["y"]
+                pyautogui.moveTo(x, y)
+
+            elif action.action_type == "mouse_click":
+                x, y = action.data["x"], action.data["y"]
+                button_str = action.data["button"]
+                pressed = action.data["pressed"]
+
+                # PyAutoGUIでは位置移動とクリックを分離
+                pyautogui.moveTo(x, y)
+                
+                # ボタンマッピング
+                if "left" in button_str.lower():
+                    button = 'left'
+                elif "right" in button_str.lower():
+                    button = 'right'
+                elif "middle" in button_str.lower():
+                    button = 'middle'
+                else:
+                    button = 'left'
+
+                if pressed:
+                    pyautogui.mouseDown(button=button)
+                else:
+                    pyautogui.mouseUp(button=button)
+
+            elif action.action_type == "mouse_scroll":
+                x, y = action.data["x"], action.data["y"]
+                dx, dy = action.data["dx"], action.data["dy"]
+                pyautogui.moveTo(x, y)
+                # PyAutoGUIではスクロール量を調整
+                pyautogui.scroll(int(dy * 3))  # dyを3倍にして適切なスクロール量に
+
+            elif action.action_type == "key_press":
+                key_name = action.data["key"]
+                pyautogui_key = self._convert_key_to_pyautogui(key_name)
+                if pyautogui_key:
+                    pyautogui.keyDown(pyautogui_key)
+
+            elif action.action_type == "key_release":
+                key_name = action.data["key"]
+                pyautogui_key = self._convert_key_to_pyautogui(key_name)
+                if pyautogui_key:
+                    pyautogui.keyUp(pyautogui_key)
+
+        except Exception as e:
+            print(f"アクション実行エラー: {e}")
+    
+    def _convert_key_to_pyautogui(self, key_name: str) -> str:
+        """pynputキー名をPyAutoGUIキー名に変換"""
+        try:
+            # 特殊キーのマッピング
+            special_key_map = {
+                'Key.space': 'space',
+                'Key.enter': 'enter',
+                'Key.return': 'enter',
+                'Key.tab': 'tab',
+                'Key.backspace': 'backspace',
+                'Key.delete': 'delete',
+                'Key.esc': 'escape',
+                'Key.escape': 'escape',
+                'Key.shift': 'shift',
+                'Key.shift_l': 'shiftleft',
+                'Key.shift_r': 'shiftright',
+                'Key.ctrl': 'ctrl',
+                'Key.ctrl_l': 'ctrlleft',
+                'Key.ctrl_r': 'ctrlright',
+                'Key.alt': 'alt',
+                'Key.alt_l': 'altleft',
+                'Key.alt_r': 'altright',
+                'Key.cmd': 'winleft',
+                'Key.cmd_l': 'winleft',
+                'Key.cmd_r': 'winright',
+                'Key.up': 'up',
+                'Key.down': 'down',
+                'Key.left': 'left',
+                'Key.right': 'right',
+                'Key.home': 'home',
+                'Key.end': 'end',
+                'Key.page_up': 'pageup',
+                'Key.page_down': 'pagedown',
+                'Key.insert': 'insert',
+                'Key.f1': 'f1', 'Key.f2': 'f2', 'Key.f3': 'f3', 'Key.f4': 'f4',
+                'Key.f5': 'f5', 'Key.f6': 'f6', 'Key.f7': 'f7', 'Key.f8': 'f8',
+                'Key.f9': 'f9', 'Key.f10': 'f10', 'Key.f11': 'f11', 'Key.f12': 'f12',
+            }
+            
+            # 特殊キーのチェック
+            if key_name in special_key_map:
+                return special_key_map[key_name]
+            
+            # 通常の文字キー（1文字）
+            if len(key_name) == 1:
+                return key_name.lower()
+            
+            # Windowsキー（特別処理）
+            if 'cmd' in key_name.lower() or 'win' in key_name.lower():
+                return 'win'
+            
+            # その他は文字列をそのまま返す
+            return key_name.lower()
+            
+        except Exception:
+            return key_name
+    
+    def _execute_action_pynput(self, action: RPAAction, mouse_controller, keyboard_controller):
+        """個別アクション実行（pynputフォールバック版）"""
         try:
             if action.action_type == "mouse_move":
                 x, y = action.data["x"], action.data["y"]
@@ -439,7 +567,7 @@ class RPAPlayer:
                     keyboard_controller.release(key)
 
         except Exception as e:
-            print(f"アクション実行エラー: {e}")
+            print(f"pynput アクション実行エラー: {e}")
 
     def _parse_key(self, key_name: str):
         """キー名からキーオブジェクトを生成"""
@@ -586,7 +714,24 @@ class RPAManager:
         """利用可能な機能の状態取得"""
         return {
             "pynput_available": HAS_PYNPUT,
+            "pyautogui_available": HAS_PYAUTOGUI,
             "win32_available": HAS_WIN32,
             "recording_supported": HAS_PYNPUT,
-            "playback_supported": HAS_PYNPUT,
+            "playback_supported": HAS_PYAUTOGUI or HAS_PYNPUT,
+            "windows_key_combinations_supported": HAS_PYAUTOGUI,
         }
+    
+    def execute_key_combination(self, modifiers: List[str], key: str) -> bool:
+        """キー組み合わせを実行（PyAutoGUI使用）"""
+        try:
+            if not HAS_PYAUTOGUI:
+                return False
+            
+            # modifiersとkeyを組み合わせてPyAutoGUIのhotkey関数で実行
+            keys = modifiers + [key] if modifiers else [key]
+            pyautogui.hotkey(*keys)
+            return True
+            
+        except Exception as e:
+            print(f"キー組み合わせ実行エラー: {e}")
+            return False
